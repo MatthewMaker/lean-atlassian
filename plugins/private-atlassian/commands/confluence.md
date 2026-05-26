@@ -19,14 +19,16 @@ Perform a focused Confluence search or page fetch and return a compact digest.
 
 ### Steps
 
-1. **Load settings**: the `cloud_id` and `site_url` are injected below from
-   `private-atlassian.local.md` — no `Read` tool call, no permission prompt
-   (`cat` is a built-in read-only command):
+1. **Load settings**: the plugin's `SessionStart` hook injects the user's
+   `cloud_id` and `site_url` into the session context at startup (read from a
+   per-project `.claude/private-atlassian.local.md`, falling back to one in the
+   Claude config directory). Use that injected `cloud_id` for every Atlassian
+   MCP call.
 
-   !`cat "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md" 2>/dev/null`
-
-   Use the `cloud_id` from that block. If it's empty, call
-   `getAccessibleAtlassianResources` once and remind the user to create the file.
+   If no Atlassian settings were injected (no config file yet), call
+   `getAccessibleAtlassianResources` once, then offer to save the `cloud_id` and
+   `site_url` to `.claude/private-atlassian.local.md` in the current project so
+   future sessions skip the lookup.
 
 2. **Interpret the argument**:
    - If it looks like a numeric page ID (all digits): fetch that page with

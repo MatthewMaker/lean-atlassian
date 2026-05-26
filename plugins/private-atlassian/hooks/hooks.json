@@ -1,0 +1,16 @@
+{
+  "description": "Injects the user's Atlassian cloud_id/site_url into each session so /jira, /confluence, and the atlassian-mediation skill never need to look them up.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

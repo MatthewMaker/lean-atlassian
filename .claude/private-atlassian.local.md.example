@@ -20,12 +20,24 @@ Copy it into the `cloud_id` field above.
 
 ## Setup
 
-1. Copy this file to `$CLAUDE_CONFIG_DIR/private-atlassian.local.md` (without the `.example` suffix):
-   ```bash
-   cp .claude/private-atlassian.local.md.example "$CLAUDE_CONFIG_DIR/private-atlassian.local.md"
-   ```
-2. Fill in `cloud_id` and `site_url`
-3. This file lives outside the repo and is never committed
+Place this file (without the `.example` suffix) in **either** location — the
+plugin's `SessionStart` hook checks the project first, then the global config:
+
+- **Global** (applies in every project): `private-atlassian.local.md` in your
+  Claude config directory (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`).
+- **Per-project** (overrides global for one repo): `.claude/private-atlassian.local.md`
+  in a project root.
+
+```bash
+# global — available everywhere
+cp .claude/private-atlassian.local.md.example \
+   "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md"
+
+# or per-project — overrides the global one for this repo
+cp .claude/private-atlassian.local.md.example .claude/private-atlassian.local.md
+```
+
+Then fill in `cloud_id` and `site_url`. Neither location is committed.
 
 ## Example
 

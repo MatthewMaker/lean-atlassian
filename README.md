@@ -14,7 +14,8 @@ window with noise.
 
 - **Digest-first output**: Summaries by default, full content only on request
 - **Targeted queries**: JQL/CQL patterns that fetch only what's needed
-- **cloudId caching**: Read once from a settings file, never redundantly fetched
+- **cloudId injection**: A `SessionStart` hook loads your `cloud_id` from a
+  settings file and injects it into the session, so it's never redundantly fetched
 - **Structured research**: An autonomous agent for multi-step Atlassian research
   that keeps raw intermediate results out of the main conversation
 
@@ -26,6 +27,7 @@ window with noise.
 | `/jira` | Command | Search Jira or look up an issue with digest output |
 | `/confluence` | Command | Search Confluence or fetch a page with digest output |
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
+| `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session |
 
 ## Prerequisites
 
@@ -37,10 +39,16 @@ window with noise.
 
 1. **Install the plugin** in Claude Code
 
-2. **Create your settings file** at `$CLAUDE_CONFIG_DIR/private-atlassian.local.md`
-   (that's typically `~/.claude/private-atlassian.local.md`, but use the env var):
+2. **Create your settings file.** The plugin's `SessionStart` hook looks for
+   `private-atlassian.local.md` in two places, project first, then global:
+   - **Global** (every project): in your Claude config dir
+     (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
+   - **Per-project** (overrides global for one repo): `.claude/private-atlassian.local.md`
+
    ```bash
-   cp .claude/private-atlassian.local.md.example "$CLAUDE_CONFIG_DIR/private-atlassian.local.md"
+   # global — available everywhere
+   cp .claude/private-atlassian.local.md.example \
+      "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md"
    ```
 
 3. **Find your cloud ID** — ask Claude:
@@ -48,7 +56,7 @@ window with noise.
 
    Claude will call `getAccessibleAtlassianResources` and display it.
 
-4. **Edit `$CLAUDE_CONFIG_DIR/private-atlassian.local.md`**:
+4. **Edit the file** you just created:
    ```yaml
    ---
    cloud_id: "your-cloud-id-here"
@@ -56,7 +64,8 @@ window with noise.
    ---
    ```
 
-   This file lives outside the repo and is never committed.
+   Neither location is committed. (If you skip this step, the first `/jira` or
+   `/confluence` call will look the ID up via MCP and offer to save it for you.)
 
 ## Usage
 
@@ -89,8 +98,15 @@ without any explicit invocation.
 
 ## Configuration
 
-Settings are stored in `$CLAUDE_CONFIG_DIR/private-atlassian.local.md` (outside the repo, never committed).
-See `.claude/private-atlassian.local.md.example` in the repo for the template.
+Settings live in `private-atlassian.local.md`, loaded by the `SessionStart`
+hook from a cascading lookup (first match wins):
+
+1. **Per-project** — `.claude/private-atlassian.local.md` in the project root
+2. **Global** — `private-atlassian.local.md` in your Claude config dir
+   (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
+
+Both locations are outside the plugin repo and never committed. See
+`.claude/private-atlassian.local.md.example` for the template.
 
 | Field | Description |
 |-------|-------------|

@@ -11,7 +11,7 @@ description: >
   Jira or Confluence query. Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Atlassian Mediation
@@ -26,18 +26,18 @@ limit fields fetched, and always cache the cloudId rather than re-fetching it.
 
 ## Settings: cloudId and Site URL
 
-The settings file `private-atlassian.local.md` (in the user's Claude config
-directory) holds their `cloud_id` and `site_url`. Its contents are **injected
-below at load time** — no `Read` tool call and no permission prompt, since the
-`cat` runs as a built-in read-only command:
+The plugin's `SessionStart` hook injects the user's `cloud_id` and `site_url`
+into the session context at startup, via a cascading lookup:
 
-!`cat "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md" 2>/dev/null`
+1. Per-project — `.claude/private-atlassian.local.md` in the project root
+2. Global fallback — `private-atlassian.local.md` in the Claude config directory
 
-Use the `cloud_id` from the block above for every Atlassian MCP call.
+Use the injected `cloud_id` for every Atlassian MCP call.
 
-If the block is empty (the file doesn't exist yet), call
-`getAccessibleAtlassianResources` once to retrieve the cloudId, then remind the
-user to create the file with this frontmatter so future sessions skip the lookup:
+If no settings were injected (no config file exists yet), call
+`getAccessibleAtlassianResources` once to retrieve the cloudId, then offer to
+save it so future sessions skip the lookup — write this frontmatter to
+`.claude/private-atlassian.local.md` in the current project:
 
 ```yaml
 ---
@@ -46,8 +46,8 @@ site_url: "https://your-org.atlassian.net"
 ---
 ```
 
-**Never call `getAccessibleAtlassianResources` if `cloud_id` is already
-available above.**
+**Never call `getAccessibleAtlassianResources` if a `cloud_id` was already
+injected into the session.**
 
 ## Core Discipline: Digest First
 
