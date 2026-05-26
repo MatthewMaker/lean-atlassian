@@ -11,7 +11,6 @@ allowed-tools:
   - mcp__claude_ai_Atlassian__getConfluencePage
   - mcp__claude_ai_Atlassian__getConfluencePageDescendants
   - mcp__claude_ai_Atlassian__getConfluenceSpaces
-  - Read
 ---
 
 ## /confluence Command
@@ -20,9 +19,14 @@ Perform a focused Confluence search or page fetch and return a compact digest.
 
 ### Steps
 
-1. **Load settings**: Read `$CLAUDE_CONFIG_DIR/private-atlassian.local.md` to get `cloud_id`.
-   If missing or empty, call `getAccessibleAtlassianResources` once to retrieve it.
-   Remind the user to populate the settings file if it wasn't found.
+1. **Load settings**: the `cloud_id` and `site_url` are injected below from
+   `private-atlassian.local.md` — no `Read` tool call, no permission prompt
+   (`cat` is a built-in read-only command):
+
+   !`cat "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md" 2>/dev/null`
+
+   Use the `cloud_id` from that block. If it's empty, call
+   `getAccessibleAtlassianResources` once and remind the user to create the file.
 
 2. **Interpret the argument**:
    - If it looks like a numeric page ID (all digits): fetch that page with
