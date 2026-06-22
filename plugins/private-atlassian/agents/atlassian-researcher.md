@@ -93,10 +93,13 @@ Obtain it in this order:
    - Call the search with `maxResults: 100`. From the overflow error, take the
      spilled file path and extract every issue with `jq` (read-only — never
      inline `python3`), e.g.
-     `jq -r '.issues[] | "[\(.key)] \(.fields.summary) — \(.fields.status.name) · \(.fields.priority.name // "—") · \(.fields.updated)"' <file>`.
-   - If the JSON carries a `nextPageToken` (or `pageInfo.hasNextPage == true`),
-     re-run with `nextPageToken: <token>` and repeat until none remains,
-     concatenating results.
+     `jq -r '.issues.nodes[] | "[\(.key)] \(.fields.summary) — \(.fields.status.name) · \(.fields.priority.name // "—") · \(.fields.updated)"' <file>`.
+   - The issue array is at **`.issues.nodes[]`**, with paging metadata at
+     `.issues.pageInfo` (`hasNextPage`, `endCursor`) — inspect the JSON's
+     top-level shape first and adapt the path if a response differs. If
+     `.issues.pageInfo.hasNextPage == true`, re-run passing
+     `.issues.pageInfo.endCursor` as `nextPageToken`, repeating until
+     `hasNextPage` is false, concatenating results.
    - Return one compact digest line per issue plus a `TOTAL: N issues` line. If
      for any reason you cannot fetch the full set, say so **loudly** — never
      present a capped list as if it were complete.
