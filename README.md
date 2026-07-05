@@ -112,6 +112,25 @@ Both locations are outside the plugin repo and never committed. See
 |-------|-------------|
 | `cloud_id` | Atlassian workspace UUID (required) |
 | `site_url` | Your Atlassian site URL, e.g. `https://acme.atlassian.net` |
+| `account_id` | Optional — your Jira accountId; injected so self-assignment skips an `atlassianUserInfo` lookup |
+| `project_key` | Optional — default project key for searches and new issues |
+| `component_prefix_strip` | Optional — strip a matched `Prefix: ` from a new issue's summary once mapped to a Component (default `true`) |
+
+The `account_id` and `project_key` scalars are injected at `SessionStart` like
+`cloud_id`. Nested caches — a per-project **Component list** and a
+**name → accountId** people map — are maintained automatically in the settings
+file body and read lazily only when creating issues, so they cost no session
+context until used.
+
+### Creating issues: summary prefix → Component
+
+When you create a Jira issue whose summary starts with one or more `Token: `
+prefixes (e.g. `"Frontend: Backend: Fix login button"`), each prefix is matched
+case-insensitively against the target project's existing Components and every
+match is added to the issue. Unmatched prefixes stay in the summary — nothing is
+invented. By default the matched prefixes are stripped from the summary; set
+`component_prefix_strip: false` to keep it verbatim. Component names are
+discovered from the project and cached locally so repeat creates skip the lookup.
 
 ## License
 

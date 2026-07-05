@@ -11,7 +11,7 @@ description: >
   Jira or Confluence query. Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Atlassian Mediation
@@ -24,30 +24,87 @@ quickly overwhelms the context window. This skill enforces a discipline of
 **digest-first, detail-on-demand**: always summarize before expanding, always
 limit fields fetched, and always cache the cloudId rather than re-fetching it.
 
-## Settings: cloudId and Site URL
+## Settings & Cache
 
-The plugin's `SessionStart` hook injects the user's `cloud_id` and `site_url`
-into the session context at startup, via a cascading lookup:
+All settings live in one uncommitted file, resolved by a cascading lookup —
+first match wins:
 
 1. Per-project — `.claude/private-atlassian.local.md` in the project root
 2. Global fallback — `private-atlassian.local.md` in the Claude config directory
+   (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
 
-Use the injected `cloud_id` for every Atlassian MCP call.
+The file is a private, per-user/per-project store. Because Component names,
+project keys, and account IDs are site-specific, this taxonomy belongs here —
+not hardcoded into the skill, which stays deliberately generic.
 
-If no settings were injected (no config file exists yet), call
-`getAccessibleAtlassianResources` once to retrieve the cloudId, then offer to
-save it so future sessions skip the lookup — write this frontmatter to
-`.claude/private-atlassian.local.md` in the current project:
+### Injected at SessionStart (scalars)
+
+The plugin's `SessionStart` hook reads the single-line scalar fields from the
+frontmatter and injects them into the session:
+
+| Field | Purpose | Replaces the call |
+|-------|---------|-------------------|
+| `cloud_id` | Workspace UUID; required on every MCP call | `getAccessibleAtlassianResources` |
+| `site_url` | Site URL for building links | — |
+| `account_id` | Your Jira accountId, for assigning issues to yourself | `atlassianUserInfo` |
+| `project_key` | Default project for searches and new issues | `getVisibleJiraProjects` |
+
+Use the injected values directly. **Never call `getAccessibleAtlassianResources`,
+`atlassianUserInfo`, or `getVisibleJiraProjects` for a value already injected.**
+`cloud_id`/`site_url` are required; `account_id`/`project_key` are optional.
+
+If nothing was injected (no config file yet), call `getAccessibleAtlassianResources`
+once, then offer to save at least the frontmatter below to
+`.claude/private-atlassian.local.md` in the current project so future sessions
+skip the lookup:
 
 ```yaml
 ---
 cloud_id: "your-cloud-id-here"
 site_url: "https://your-org.atlassian.net"
+account_id: ""            # optional — your Jira accountId
+project_key: ""           # optional — default project key, e.g. MYPROJ
+component_prefix_strip: true   # optional — see Creating Issues
 ---
 ```
 
-**Never call `getAccessibleAtlassianResources` if a `cloud_id` was already
-injected into the session.**
+### Lazy self-maintained caches (file body)
+
+Nested data is **not** injected at SessionStart — it is read (and written) lazily
+by the **Creating Issues** workflow, only when needed, so no session pays context
+for a map it will not use. Prefer the project-level settings file when writing,
+since this data is project-specific. Maintain two Markdown sections in the file
+body, refreshing each on a miss (append the freshly-fetched value, exactly like a
+self-updating note):
+
+- **Component cache** — one list of Component names per project key. On a prefix
+  that matches nothing, re-fetch the project's live Components once (one may have
+  been added), rewrite the list, then retry.
+- **People cache** — a `Full Name: accountId` list for people you assign or query
+  about. On a name miss, call `lookupJiraAccountId` once, then append it here.
+
+```markdown
+## Component cache (auto-maintained)
+
+### MYPROJ
+- Frontend
+- Backend
+- Platform
+_refreshed: 2026-07-05_
+
+## People cache (auto-maintained)
+
+- Alice Smith: 712020:aaaaaaaa-1111-2222-3333-444444444444
+- Bob Jones: 712020:bbbbbbbb-5555-6666-7777-888888888888
+
+## Prefix exceptions
+
+- Urgent
+- WIP
+```
+
+**Prefix exceptions** is an optional body list of tokens that must never be
+treated as a Component prefix even if a Component of that name exists.
 
 ## Core Discipline: Digest First
 
@@ -110,6 +167,60 @@ See `references/jql-patterns.md` for common query templates. Key rules:
 - Use `status != Done` to exclude resolved issues by default
 - Use `assignee = currentUser()` for "my issues" queries
 - Use `text ~ "keyword"` for full-text search across summary + description
+
+## Creating Issues
+
+Create issues with `createJiraIssue`. Default the `projectKey` to the injected
+`project_key` and assignment-to-self to the injected `account_id` unless the
+user says otherwise. Layer the prefix→Component behavior below on top.
+
+### Summary prefixes → Components
+
+A **prefix** is a leading token followed by a colon and a space: in
+`"Frontend: Fix login button"`, the prefix is `Frontend`. A summary may carry
+**any number** of stacked leading prefixes —
+`"Frontend: Backend: Fix login button"` yields candidate prefixes `Frontend`
+and `Backend`.
+
+When creating an issue:
+
+1. **Peel leading prefixes.** From the front of the summary, repeatedly split off
+   `<token>: ` segments. Each `<token>` is a candidate prefix. Stop at the first
+   token that does not resolve to a Component (step 3) — a non-matching leading
+   token (e.g. `Urgent`) is ordinary summary text, not a prefix. Tokens listed
+   under **Prefix exceptions** in the settings file are never treated as prefixes.
+
+2. **Get the project's Components.** Read the **Component cache** for this project
+   from the settings file first. On a miss — no cached list, or a candidate
+   matches nothing — fetch the live list once via `getJiraIssueTypeMetaWithFields`
+   (read the `components` field's allowed values), then rewrite the cache section.
+
+3. **Match case-insensitively.** A candidate resolves to a Component when it
+   equals an existing Component name ignoring case — `frontend`, `Frontend`, and
+   `FRONTEND` all match a `Frontend` component.
+
+4. **Apply matches.** Set the new issue's `components` field to every matched
+   Component (the field is a list, so stacked prefixes add multiple components).
+   Never invent a Component that doesn't exist in the project; unmatched prefixes
+   add nothing and are left in the summary.
+
+5. **Summary text.** By default (`component_prefix_strip: true` or unset),
+   **strip** each matched prefix from the summary, since the Component now carries
+   that information — `"Frontend: Fix login"` with a matched `Frontend` component
+   becomes summary `"Fix login"`. If `component_prefix_strip: false`, keep the
+   summary verbatim.
+
+6. **Confirm.** After creating, report the resolved Components and the final
+   summary, e.g. *"Created MYPROJ-123 (components: Frontend, Backend) — 'Fix login
+   button'."*
+
+### Assignees and people
+
+To assign an issue or filter by a person, resolve the name to an accountId via
+the **People cache** in the settings file first. On a miss, call
+`lookupJiraAccountId` once, then append the result to the cache so future
+references skip the lookup. Use the injected `account_id` for the current user
+without any lookup.
 
 ## Confluence Workflows
 

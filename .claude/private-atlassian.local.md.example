@@ -1,11 +1,20 @@
 ---
 cloud_id: "your-cloud-id-here"
 site_url: "https://your-org.atlassian.net"
+account_id: ""
+project_key: ""
+component_prefix_strip: true
 ---
 
 # Atlassian Plugin Settings
 
 Configure this file with your Atlassian workspace details.
+
+Only `cloud_id` and `site_url` are required. `account_id`, `project_key`, and
+`component_prefix_strip` are optional — leave them blank to disable the related
+behavior. The `SessionStart` hook injects the four scalar fields above (when
+non-empty); the auto-maintained cache sections near the bottom are read and
+rewritten lazily, only when creating issues.
 
 ## How to find your cloud_id
 
@@ -45,5 +54,54 @@ Then fill in `cloud_id` and `site_url`. Neither location is committed.
 ---
 cloud_id: "a1b2c3d4-1234-5678-abcd-ef0123456789"
 site_url: "https://acme.atlassian.net"
+account_id: "712020:aaaaaaaa-1111-2222-3333-444444444444"
+project_key: "MYPROJ"
+component_prefix_strip: true
 ---
 ```
+
+## Optional scalars
+
+| Field | Purpose |
+|-------|---------|
+| `account_id` | Your Jira accountId — used to assign issues to yourself without an `atlassianUserInfo` lookup. |
+| `project_key` | Default project key for searches and new issues (e.g. `MYPROJ`). |
+| `component_prefix_strip` | When creating an issue, whether a matched summary prefix (e.g. `Frontend: `) is stripped from the summary once mapped to a Component. Default `true`; set `false` to keep summaries verbatim. |
+
+## Creating issues: prefix → Component mapping
+
+When you create a Jira issue whose summary starts with one or more `Token: `
+prefixes, each prefix is matched **case-insensitively** against the target
+project's existing Components; every match is added to the new issue's Components.
+Unmatched prefixes are left in the summary untouched — nothing is invented.
+
+The plugin maintains two self-updating caches in this file's body so it doesn't
+re-fetch on every create. You don't need to fill these in by hand — they are
+written automatically on first use — but the shape is:
+
+```markdown
+## Component cache (auto-maintained)
+
+### MYPROJ
+- Frontend
+- Backend
+- Platform
+_refreshed: 2026-07-05_
+
+## People cache (auto-maintained)
+
+- Alice Smith: 712020:aaaaaaaa-1111-2222-3333-444444444444
+- Bob Jones: 712020:bbbbbbbb-5555-6666-7777-888888888888
+
+## Prefix exceptions
+
+- Urgent
+- WIP
+```
+
+- **Component cache** — one Component list per project key; refreshed when a
+  prefix matches nothing (a Component may have been added since).
+- **People cache** — `Full Name: accountId`, so assigning or querying a person
+  skips the `lookupJiraAccountId` call after the first time.
+- **Prefix exceptions** — tokens that should never be treated as a Component
+  prefix even if a Component of that name exists.

@@ -50,6 +50,11 @@ read_field() {
 
 cloud_id="$(read_field cloud_id)"
 site_url="$(read_field site_url)"
+# Optional scalars — broadly useful and cheap, so inject them too when present.
+# account_id saves an atlassianUserInfo call (assignment, "my issues");
+# project_key saves a getVisibleJiraProjects call (default project scope).
+account_id="$(read_field account_id)"
+project_key="$(read_field project_key)"
 
 # Treat the unedited example placeholder (or an empty value) as "not configured".
 if [[ -z "$cloud_id" || "$cloud_id" == "your-cloud-id-here" ]]; then
@@ -63,6 +68,8 @@ json_escape() {
 }
 cloud_id="$(json_escape "$cloud_id")"
 site_url="$(json_escape "$site_url")"
+account_id="$(json_escape "$account_id")"
+project_key="$(json_escape "$project_key")"
 src="$(json_escape "$src")"
 
 # additionalContext is a single JSON string; the literal \n sequences below
@@ -70,8 +77,11 @@ src="$(json_escape "$src")"
 ctx="## Atlassian settings (private-atlassian plugin)\n\n"
 ctx+="Use these for every Atlassian MCP call. The cloud_id is already known — do NOT call getAccessibleAtlassianResources.\n"
 ctx+="- cloud_id: ${cloud_id}\n"
-ctx+="- site_url: ${site_url}\n\n"
-ctx+="(loaded from ${src})"
+ctx+="- site_url: ${site_url}\n"
+# Only surface the optional identifiers that are actually configured.
+[[ -n "$account_id" ]] && ctx+="- account_id: ${account_id} (your Jira accountId — use for assignment; do NOT call atlassianUserInfo)\n"
+[[ -n "$project_key" ]] && ctx+="- project_key: ${project_key} (default Jira project for searches and new issues)\n"
+ctx+="\n(loaded from ${src})"
 
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$ctx"
 exit 0
