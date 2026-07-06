@@ -24,7 +24,7 @@ window with noise.
 | Component | Type | Purpose |
 |-----------|------|---------|
 | `atlassian-mediation` | Skill | Teaches Claude the discipline of efficient Atlassian interaction |
-| `/jira` | Command | Search Jira or look up an issue with digest output |
+| `/jira` | Command | Search Jira, look up an issue, or create one with digest output |
 | `/confluence` | Command | Search Confluence or fetch a page with digest output |
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
 | `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session |
@@ -75,6 +75,8 @@ window with noise.
 /jira PROJ-123
 /jira my open bugs
 /jira project = MYPROJ AND status = "In Progress"
+/jira create bug: Frontend: Fix login button
+/jira new Backend: rate-limit the search endpoint
 
 /confluence deployment runbooks
 /confluence auth docs in ENG space
