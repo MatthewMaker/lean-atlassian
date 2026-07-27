@@ -11,7 +11,7 @@ description: >
   Jira or Confluence query. Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
-version: 0.4.0
+version: 0.5.0
 ---
 
 # Atlassian Mediation
@@ -221,6 +221,30 @@ the **People cache** in the settings file first. On a miss, call
 `lookupJiraAccountId` once, then append the result to the cache so future
 references skip the lookup. Use the injected `account_id` for the current user
 without any lookup.
+
+## Editing Issues
+
+Use `editJiraIssue` to change fields on an existing issue (assignee, priority,
+sprint, description, etc.).
+
+### Sprint assignment
+
+Set the sprint by writing the sprint's **numeric id** to `customfield_10020`
+(e.g. `{"customfield_10020": 705}`). The id is the sprint id, **not** the sprint
+number.
+
+**Do not verify the assignment afterward when the id came from a trusted cache.**
+`editJiraIssue` omits `customfield_10020` from its response payload on success —
+the missing sprint field is a quirk of the response shape, not a signal that the
+write failed. When the sprint id is a **cached/known-good identifier** (e.g. the
+current-sprint id maintained in project settings, `CLAUDE.md`, or `AGENTS.md`), a
+non-error response means the edit took. Skip the follow-up `getJiraIssue` — it
+spends context confirming something the absence of an error already told you.
+
+(If the id is *unverified* — a number the user supplied that may not be a real,
+open sprint on this board — a bad id can be silently rejected; there, a single
+confirming read is warranted. The no-verify rule applies specifically to cached
+ids you already trust.)
 
 ## Confluence Workflows
 
