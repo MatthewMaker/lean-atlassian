@@ -36,12 +36,13 @@ the general `search` — they return cleaner, more structured results.
 
 | Tool | Purpose | Key params |
 |------|---------|-----------|
-| `createJiraIssue` | Create a new issue | `cloudId`, `projectKey`, `summary`, `issueType` |
-| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, fields to update |
+| `createJiraIssue` | Create a new issue | `cloudId`, `projectKey`, `summary`, `issueTypeName`; assignee via `assignee_account_id`; priority/components/labels/custom fields via `additional_fields` |
+| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, `fields` (assignee included — unlike create) |
 | `transitionJiraIssue` | Move issue to new status | `cloudId`, `issueIdOrKey`, `transitionId` |
 | `addCommentToJiraIssue` | Add a comment | `cloudId`, `issueIdOrKey`, `body` |
 | `addWorklogToJiraIssue` | Log time | `cloudId`, `issueIdOrKey`, `timeSpent` |
 | `lookupJiraAccountId` | Find a user's account ID | `cloudId`, `query` |
+| `createIssueLink` | Link two issues | `cloudId`, `inwardIssue`, `outwardIssue`, `type` — all **plain strings** (`"MYPROJ-123"`, `"Relates"`), not objects |
 
 ## Confluence
 
