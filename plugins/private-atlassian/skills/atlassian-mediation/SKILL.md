@@ -11,7 +11,7 @@ description: >
   Jira or Confluence query. Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Atlassian Mediation
@@ -173,6 +173,40 @@ See `references/jql-patterns.md` for common query templates. Key rules:
 Create issues with `createJiraIssue`. Default the `projectKey` to the injected
 `project_key` and assignment-to-self to the injected `account_id` unless the
 user says otherwise. Layer the prefix→Component behavior below on top.
+
+### Field placement
+
+`createJiraIssue` spreads its fields across three homes, and passing one to the
+wrong home **fails silently** — an unknown top-level parameter is dropped rather
+than rejected, so the call returns a normal-looking issue with those fields unset.
+
+| Field | Where it goes |
+|-------|---------------|
+| `summary`, `description`, `projectKey`, `parent` | own top-level parameters |
+| issue type | `issueTypeName` — **not** `issueType` |
+| assignee | `assignee_account_id`, top-level, a bare id string |
+| `priority`, `components`, `labels`, `fixVersions`, `customfield_*` | inside `additional_fields` |
+
+`additional_fields` is **snake_case** and takes raw Jira field shapes:
+
+```json
+{"components": [{"name": "Frontend"}], "priority": {"name": "Low"}, "customfield_10020": 123}
+```
+
+Note the asymmetry with `editJiraIssue`, which puts everything — assignee
+included — inside a parameter named **`fields`**:
+
+```json
+{"assignee": {"accountId": "…"}, "components": [{"name": "Frontend"}]}
+```
+
+Getting this wrong is not hypothetical. A batch of issues created with a
+camelCase `additionalFields` and a nested `assignee` came back with assignee,
+components, priority and sprint all unset, and each create reported success.
+
+This is a "pass the right shape" rule, not a "verify afterwards" rule — it adds no
+follow-up read. See **Sprint assignment** under *Editing Issues* for why a trusted
+write needs no confirming fetch.
 
 ### Summary prefixes → Components
 
