@@ -6,10 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions below 0.7.0 were never tagged, so each heading links the commit that
 carried the version bump in `plugin.json`.
 
-## [Unreleased]
+## [0.7.0] - 2026-09-21
 
 The plugin, marketplace, and settings file were renamed, which breaks existing
-installs. `plugin.json` still reads 0.6.0 — bump it before releasing.
+installs: remove and re-add the marketplace, then reinstall. Settings files are
+unaffected.
 
 ### Changed
 
