@@ -144,6 +144,20 @@ invented. By default the matched prefixes are stripped from the summary; set
 `component_prefix_strip: false` to keep it verbatim. Component names are
 discovered from the project and cached locally so repeat creates skip the lookup.
 
+## Development
+
+No build step. Checks, runnable from anywhere in the repo:
+
+```bash
+tests/hook-cascade.sh          # SessionStart hook: precedence, scalars, JSON escaping
+tests/manifest-invariants.sh   # manifest structure; version declared exactly once
+shellcheck plugins/*/hooks/*.sh tests/*.sh
+claude plugin validate .
+```
+
+CI runs all four on every pull request. See [CHANGELOG.md](CHANGELOG.md) for
+version history.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

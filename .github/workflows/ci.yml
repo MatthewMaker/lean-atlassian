@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push supersedes any run still in flight for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell:
+    name: Hook script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck plugins/*/hooks/*.sh tests/*.sh
+
+      - name: Parse check
+        run: |
+          for f in plugins/*/hooks/*.sh tests/*.sh; do bash -n "$f"; done
+
+      # The hook is the only executable code here, and it fails quietly: a bad
+      # emission reaches every session of every install.
+      - name: Cascade and emission tests
+        run: tests/hook-cascade.sh
+
+  manifests:
+    name: Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      # Schema validation. Runs unauthenticated.
+      - name: claude plugin validate
+        run: claude plugin validate .
+
+      # Repo-specific invariants the schema can't express — above all that the
+      # version is declared exactly once.
+      - name: Manifest invariants
+        run: tests/manifest-invariants.sh
