@@ -67,7 +67,21 @@ strays="$(git ls-files '*.md' | xargs grep -ln '^version:' 2>/dev/null || true)"
 [[ -z "$strays" ]] || fail "unexpected 'version:' frontmatter in: $strays"
 ok "no stray version declarations in Markdown"
 
-# 6. Declared hook commands must exist and be executable.
+# 6. Every declared version must appear in the changelog. Catches a bump that
+#    ships with no note, and a changelog entry left open after a release.
+if [[ -f CHANGELOG.md ]]; then
+    while IFS= read -r manifest; do
+        v="$(jq -r '.version // empty' "$manifest")"
+        [[ -n "$v" ]] || continue
+        # Dots are regex metacharacters; the heading match must be literal.
+        vesc="${v//./\\.}"
+        grep -qE "^## \[$vesc\]" CHANGELOG.md \
+            || fail "CHANGELOG.md has no '## [$v]' heading for the version in $manifest"
+    done < <(git ls-files '*/.claude-plugin/plugin.json')
+    ok "changelog covers each declared version"
+fi
+
+# 7. Declared hook commands must exist and be executable.
 while IFS= read -r hookfile; do
     while IFS= read -r cmd; do
         path="${cmd/\$\{CLAUDE_PLUGIN_ROOT\}/$(dirname "$(dirname "$hookfile")")}"
@@ -77,7 +91,7 @@ while IFS= read -r hookfile; do
 done < <(git ls-files '*/hooks/hooks.json')
 ok "hook commands exist and are executable"
 
-# 7. Every skill directory carries a SKILL.md.
+# 8. Every skill directory carries a SKILL.md.
 while IFS= read -r d; do
     [[ -f "$d/SKILL.md" ]] || fail "$d has no SKILL.md"
 done < <(find plugins/*/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null)

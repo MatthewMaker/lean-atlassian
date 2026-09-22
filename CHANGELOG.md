@@ -40,7 +40,8 @@ unaffected.
 - `tests/hook-cascade.sh` — nine checks over the hook's settings-file
   precedence, optional-scalar gating, placeholder handling, and JSON escaping.
 - `tests/manifest-invariants.sh` — structural manifest checks, including that
-  the version is declared exactly once.
+  the version is declared exactly once and that the changelog has an entry for
+  it.
 - GitHub Actions CI running shellcheck, both test scripts, and
   `claude plugin validate` on every pull request.
 
