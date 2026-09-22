@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SessionStart hook for the private-atlassian plugin.
+# SessionStart hook for the lean-atlassian plugin.
 #
 # Loads the user's Atlassian cloud_id / site_url and injects them into the
 # session as additionalContext, so /jira, /confluence, and the
@@ -14,9 +14,15 @@
 # environment, so it can resolve the user's actual (possibly non-default)
 # config directory.
 #
-# Cascade — first match wins:
-#   1. Per-project:  $CLAUDE_PROJECT_DIR/.claude/private-atlassian.local.md
-#   2. Global:       ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md
+# Cascade — first match wins. Both tiers accept the legacy
+# `private-atlassian.local.md` name the plugin used before it was renamed, so an
+# existing setup keeps working untouched:
+#   1. $CLAUDE_PROJECT_DIR/.claude/lean-atlassian.local.md
+#   2. $CLAUDE_PROJECT_DIR/.claude/private-atlassian.local.md      (legacy)
+#   3. ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lean-atlassian.local.md
+#   4. ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md  (legacy)
+#
+# Project beats global at both names, preserving the per-project override.
 #
 # Emitting `{}` (no additionalContext) when nothing is configured keeps the
 # hook silent; the commands/skill then fall back to a one-time MCP lookup.
@@ -25,15 +31,26 @@
 proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
+# Candidate paths in precedence order; the current name is tried before the
+# legacy one within each tier.
 file=""
 src=""
-if [[ -f "$proj/.claude/private-atlassian.local.md" ]]; then
-    file="$proj/.claude/private-atlassian.local.md"
-    src="project .claude/private-atlassian.local.md"
-elif [[ -f "$cfg/private-atlassian.local.md" ]]; then
-    file="$cfg/private-atlassian.local.md"
-    src="$cfg/private-atlassian.local.md"
-fi
+for candidate in \
+    "$proj/.claude/lean-atlassian.local.md" \
+    "$proj/.claude/private-atlassian.local.md" \
+    "$cfg/lean-atlassian.local.md" \
+    "$cfg/private-atlassian.local.md"
+do
+    if [[ -f "$candidate" ]]; then
+        file="$candidate"
+        # Report project-tier hits relative to the project, global ones absolute.
+        case "$candidate" in
+            "$proj/"*) src="project ${candidate#"$proj/"}" ;;
+            *)         src="$candidate" ;;
+        esac
+        break
+    fi
+done
 
 # Nothing configured anywhere → stay silent and let the MCP fallback handle it.
 if [[ -z "$file" ]]; then
@@ -74,7 +91,7 @@ src="$(json_escape "$src")"
 
 # additionalContext is a single JSON string; the literal \n sequences below
 # render as newlines in the injected context.
-ctx="## Atlassian settings (private-atlassian plugin)\n\n"
+ctx="## Atlassian settings (lean-atlassian plugin)\n\n"
 ctx+="Use these for every Atlassian MCP call. The cloud_id is already known — do NOT call getAccessibleAtlassianResources.\n"
 ctx+="- cloud_id: ${cloud_id}\n"
 ctx+="- site_url: ${site_url}\n"

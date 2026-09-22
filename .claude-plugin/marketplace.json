@@ -1,21 +1,22 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "MatthewMaker-private-atlassian",
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "lean-atlassian",
   "description": "Mediates interaction with the Atlassian MCP server to minimize context bloat. Provides focused Jira and Confluence access with digest-style output.",
   "owner": {
     "name": "Matt Maker"
   },
   "plugins": [
     {
-      "name": "private-atlassian",
+      "name": "lean-atlassian",
       "description": "Mediates interaction with the Atlassian MCP server to minimize context bloat. Provides focused Jira and Confluence access with digest-style output by default.",
-      "version": "0.6.0",
+      "source": "./plugins/lean-atlassian",
       "author": {
         "name": "Matt Maker"
       },
-      "source": "./plugins/private-atlassian",
+      "homepage": "https://github.com/MatthewMaker/lean-atlassian",
+      "repository": "https://github.com/MatthewMaker/lean-atlassian",
+      "license": "MIT",
       "category": "productivity",
-      "homepage": "https://github.com/MatthewMaker/private-atlassian",
       "tags": ["atlassian", "jira", "confluence", "mcp"]
     }
   ]

@@ -25,13 +25,13 @@ Perform a focused Jira lookup or search and return a compact digest.
 1. **Load settings**: the plugin's `SessionStart` hook injects the user's
    `cloud_id`, `site_url`, and (when configured) `account_id` and `project_key`
    into the session context at startup (read from a per-project
-   `.claude/private-atlassian.local.md`, falling back to one in the Claude config
+   `.claude/lean-atlassian.local.md`, falling back to one in the Claude config
    directory). Use the injected `cloud_id` for every Atlassian MCP call, and the
    injected `account_id`/`project_key` instead of looking them up.
 
    If no Atlassian settings were injected (no config file yet), call
    `getAccessibleAtlassianResources` once, then offer to save the `cloud_id` and
-   `site_url` to `.claude/private-atlassian.local.md` in the current project so
+   `site_url` to `.claude/lean-atlassian.local.md` in the current project so
    future sessions skip the lookup.
 
 2. **Interpret the argument** — check in this order:
