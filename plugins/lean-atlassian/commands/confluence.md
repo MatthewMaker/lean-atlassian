@@ -21,13 +21,13 @@ Perform a focused Confluence search or page fetch and return a compact digest.
 
 1. **Load settings**: the plugin's `SessionStart` hook injects the user's
    `cloud_id` and `site_url` into the session context at startup (read from a
-   per-project `.claude/private-atlassian.local.md`, falling back to one in the
+   per-project `.claude/lean-atlassian.local.md`, falling back to one in the
    Claude config directory). Use that injected `cloud_id` for every Atlassian
    MCP call.
 
    If no Atlassian settings were injected (no config file yet), call
    `getAccessibleAtlassianResources` once, then offer to save the `cloud_id` and
-   `site_url` to `.claude/private-atlassian.local.md` in the current project so
+   `site_url` to `.claude/lean-atlassian.local.md` in the current project so
    future sessions skip the lookup.
 
 2. **Interpret the argument**:

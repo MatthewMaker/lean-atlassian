@@ -11,7 +11,6 @@ description: >
   Jira or Confluence query. Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
-version: 0.6.0
 ---
 
 # Atlassian Mediation
@@ -29,8 +28,8 @@ limit fields fetched, and always cache the cloudId rather than re-fetching it.
 All settings live in one uncommitted file, resolved by a cascading lookup —
 first match wins:
 
-1. Per-project — `.claude/private-atlassian.local.md` in the project root
-2. Global fallback — `private-atlassian.local.md` in the Claude config directory
+1. Per-project — `.claude/lean-atlassian.local.md` in the project root
+2. Global fallback — `lean-atlassian.local.md` in the Claude config directory
    (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
 
 The file is a private, per-user/per-project store. Because Component names,
@@ -55,7 +54,7 @@ Use the injected values directly. **Never call `getAccessibleAtlassianResources`
 
 If nothing was injected (no config file yet), call `getAccessibleAtlassianResources`
 once, then offer to save at least the frontmatter below to
-`.claude/private-atlassian.local.md` in the current project so future sessions
+`.claude/lean-atlassian.local.md` in the current project so future sessions
 skip the lookup:
 
 ```yaml
@@ -333,7 +332,7 @@ everything would flood the context, then offer a targeted query instead.
 ## Error Handling
 
 - **cloudId missing**: Call `getAccessibleAtlassianResources`, show the result,
-  prompt user to add it to `.claude/private-atlassian.local.md`.
+  prompt user to add it to `.claude/lean-atlassian.local.md`.
 - **No results**: Suggest a relaxed query (remove filters, broaden text search).
 - **Permission error**: Note the user may not have access; suggest checking
   Atlassian permissions.

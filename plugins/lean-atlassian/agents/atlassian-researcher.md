@@ -53,7 +53,7 @@ You need a `cloud_id` (and ideally `site_url`) for every Atlassian MCP call.
 Obtain it in this order:
 
 1. If the dispatching context already gave you a `cloud_id`, use it.
-2. Otherwise read `.claude/private-atlassian.local.md` (in the project root) and
+2. Otherwise read `.claude/lean-atlassian.local.md` (in the project root) and
    parse its YAML frontmatter for `cloud_id` / `site_url`.
 3. If neither is available, call `getAccessibleAtlassianResources` once to
    retrieve the `cloud_id`.

@@ -1,4 +1,4 @@
-# private-atlassian
+# lean-atlassian
 
 A Claude Code plugin that mediates interaction with the Atlassian MCP server,
 keeping Jira and Confluence responses focused and context-efficient.
@@ -37,18 +37,23 @@ window with noise.
 
 ## Setup
 
-1. **Install the plugin** in Claude Code
+1. **Install the plugin** in Claude Code:
+
+   ```
+   /plugin marketplace add MatthewMaker/lean-atlassian
+   /plugin install lean-atlassian@lean-atlassian
+   ```
 
 2. **Create your settings file.** The plugin's `SessionStart` hook looks for
-   `private-atlassian.local.md` in two places, project first, then global:
+   `lean-atlassian.local.md` in two places, project first, then global:
    - **Global** (every project): in your Claude config dir
      (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
-   - **Per-project** (overrides global for one repo): `.claude/private-atlassian.local.md`
+   - **Per-project** (overrides global for one repo): `.claude/lean-atlassian.local.md`
 
    ```bash
    # global — available everywhere
-   cp .claude/private-atlassian.local.md.example \
-      "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md"
+   cp .claude/lean-atlassian.local.md.example \
+      "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lean-atlassian.local.md"
    ```
 
 3. **Find your cloud ID** — ask Claude:
@@ -100,15 +105,20 @@ without any explicit invocation.
 
 ## Configuration
 
-Settings live in `private-atlassian.local.md`, loaded by the `SessionStart`
+Settings live in `lean-atlassian.local.md`, loaded by the `SessionStart`
 hook from a cascading lookup (first match wins):
 
-1. **Per-project** — `.claude/private-atlassian.local.md` in the project root
-2. **Global** — `private-atlassian.local.md` in your Claude config dir
+1. **Per-project** — `.claude/lean-atlassian.local.md` in the project root
+2. **Global** — `lean-atlassian.local.md` in your Claude config dir
    (`$CLAUDE_CONFIG_DIR`, typically `~/.claude`)
 
 Both locations are outside the plugin repo and never committed. See
-`.claude/private-atlassian.local.md.example` for the template.
+`.claude/lean-atlassian.local.md.example` for the template.
+
+This plugin was previously called `private-atlassian`. Both tiers still accept
+a `private-atlassian.local.md` file, checked after the current name, so an
+existing settings file keeps working with no migration. Rename it at your
+convenience.
 
 | Field | Description |
 |-------|-------------|
@@ -136,4 +146,4 @@ discovered from the project and cached locally so repeat creates skip the lookup
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

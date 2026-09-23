@@ -1,10 +1,13 @@
 {
-  "name": "private-atlassian",
+  "name": "lean-atlassian",
   "version": "0.6.0",
   "description": "Mediates interaction with the Atlassian MCP server to minimize context bloat. Provides focused Jira and Confluence access with digest-style output by default.",
   "author": {
     "name": "Matt \"Trip\" Maker",
     "email": "info@entropyreductionservices.com"
   },
+  "homepage": "https://github.com/MatthewMaker/lean-atlassian",
+  "repository": "https://github.com/MatthewMaker/lean-atlassian",
+  "license": "MIT",
   "keywords": ["atlassian", "jira", "confluence", "mcp", "productivity"]
 }

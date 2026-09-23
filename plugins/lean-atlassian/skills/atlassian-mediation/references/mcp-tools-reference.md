@@ -78,7 +78,7 @@ ARIs look like: `ari:cloud:jira:CLOUD_ID:issue/10107`
 
 - Every tool requires `cloudId` except `atlassianUserInfo` and `getAccessibleAtlassianResources`
 - `cloudId` is a UUID, e.g., `"a1b2c3d4-1234-5678-abcd-ef0123456789"`
-- Read from `.claude/private-atlassian.local.md` settings file
+- Read from `.claude/lean-atlassian.local.md` settings file
 - If not set, call `getAccessibleAtlassianResources` once and cache
 
 ## Content Format Notes
