@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions below 0.7.0 were never tagged, so each heading links the commit that
 carried the version bump in `plugin.json`.
 
+## [Unreleased]
+
+### Added
+
+- `.github/` issue forms, pull request template, and `CODEOWNERS`.
+- `SECURITY.md`, describing what the settings file holds and how to report a
+  finding.
+
 ## [0.7.0] - 2026-09-21
 
 The plugin, marketplace, and settings file were renamed, which breaks existing

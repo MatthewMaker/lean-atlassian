@@ -1,0 +1,52 @@
+name: Feature request
+description: Propose a change to how the plugin behaves
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The plugin's purpose is keeping Atlassian MCP responses small. Proposals
+        that add output, extra calls, or session context are weighed against
+        that — worth saying up front why the cost is justified.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's awkward today
+      description: The interaction you keep having that this would fix.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like instead
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it belongs
+      description: |
+        Behavior lives in the skill; the commands delegate to it. Only pick a
+        command if the change is genuinely about argument parsing or output
+        shape for that entry point.
+      options:
+        - atlassian-mediation skill (behavior)
+        - /jira command
+        - /confluence command
+        - atlassian-researcher agent
+        - SessionStart hook / settings
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: context-cost
+    attributes:
+      label: Context cost
+      description: |
+        Would this add tokens to every session, or only when used? Settings-file
+        scalars are injected at every SessionStart; the Component and people
+        caches are read lazily and cost nothing until an issue is created.
