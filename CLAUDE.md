@@ -6,21 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A single-plugin Claude Code marketplace. The only executable code is one bash
 `SessionStart` hook; everything else is Markdown that instructs a future Claude
-instance. There is no build, no test suite, and no package manager. Verifying
-the hook:
+instance. There is no build step and no package manager. Checks, all runnable
+from anywhere in the repo:
 
 ```bash
-bash -n plugins/lean-atlassian/hooks/load-atlassian-config.sh
-CLAUDE_PROJECT_DIR=$PWD plugins/lean-atlassian/hooks/load-atlassian-config.sh | jq .
+tests/hook-cascade.sh          # hook precedence, optional scalars, JSON escaping
+tests/manifest-invariants.sh   # manifest structure; version declared exactly once
+shellcheck plugins/*/hooks/*.sh
+claude plugin validate .       # schema; runs unauthenticated
 ```
 
-It must always emit valid JSON on stdout — `{}` when nothing is configured,
-never an error or a bare message.
+CI runs all four on every PR.
+
+The hook's governing invariant: it must always emit valid JSON on stdout —
+`{}` when nothing is configured, never an error or a bare message. It fails
+quietly by design, so a bad emission reaches every session of every install
+without announcing itself. That's what `tests/hook-cascade.sh` exists to pin.
 
 ## Layout
 
 ```
 .claude-plugin/marketplace.json          # catalog entry
+.github/workflows/ci.yml
+tests/{hook-cascade,manifest-invariants}.sh
 plugins/lean-atlassian/
   .claude-plugin/plugin.json             # plugin manifest
   hooks/{hooks.json,load-atlassian-config.sh}

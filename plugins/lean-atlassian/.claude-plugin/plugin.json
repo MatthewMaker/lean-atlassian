@@ -1,6 +1,6 @@
 {
   "name": "lean-atlassian",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Mediates interaction with the Atlassian MCP server to minimize context bloat. Provides focused Jira and Confluence access with digest-style output by default.",
   "author": {
     "name": "Matt \"Trip\" Maker",
