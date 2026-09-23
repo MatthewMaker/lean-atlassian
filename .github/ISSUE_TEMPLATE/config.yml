@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Atlassian MCP server problems
+    url: https://support.atlassian.com/
+    about: >-
+      Auth failures, missing permissions, or wrong data coming back from Jira
+      or Confluence are the MCP server's domain, not this plugin's. This plugin
+      only shapes requests and summarises responses.

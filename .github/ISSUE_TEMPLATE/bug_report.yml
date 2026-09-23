@@ -1,0 +1,91 @@
+name: Bug report
+description: Something in the plugin behaves differently than documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you paste anything:** this plugin's settings file holds your
+        Atlassian `cloud_id`, `site_url`, `account_id`, and cached Component
+        and people names. Those identify your organisation. Redact them from
+        any snippet you attach here.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which part
+      options:
+        - /jira command
+        - /confluence command
+        - atlassian-mediation skill
+        - atlassian-researcher agent
+        - SessionStart hook (settings not loading)
+        - Marketplace install or update
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you asked for, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: From `/plugin`, or the `version` in plugin.json.
+      placeholder: "0.7.0"
+    validations:
+      required: true
+
+  - type: input
+    id: cc-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: settings-tier
+    attributes:
+      label: Where your settings file lives
+      description: |
+        The hook checks four paths, project before global, current name before
+        the legacy `private-atlassian.local.md`. Which one applies?
+      options:
+        - Project — .claude/lean-atlassian.local.md
+        - Project — .claude/private-atlassian.local.md (legacy name)
+        - Global — lean-atlassian.local.md in the Claude config dir
+        - Global — private-atlassian.local.md in the Claude config dir (legacy)
+        - No settings file yet
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: hook-output
+    attributes:
+      label: Hook output
+      description: |
+        For anything involving settings not loading, run the hook directly and
+        paste the result — **redact `cloud_id`, `site_url`, and `account_id`**:
+
+        ```
+        CLAUDE_PROJECT_DIR=$PWD \
+          plugins/lean-atlassian/hooks/load-atlassian-config.sh | jq .
+        ```
+
+        `{}` means it found no configured settings file.
+      render: shell
