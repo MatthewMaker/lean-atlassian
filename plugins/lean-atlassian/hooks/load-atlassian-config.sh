@@ -47,7 +47,7 @@ cloud_id="$(read_field cloud_id)"
 site_url="$(read_field site_url)"
 # Optional scalars — broadly useful and cheap, so inject them too when present.
 # account_id saves an atlassianUserInfo call (assignment, "my issues");
-# project_key saves a getVisibleJiraProjects call (default project scope).
+# project_key saves a listJiraProjects call (default project scope).
 account_id="$(read_field account_id)"
 project_key="$(read_field project_key)"
 

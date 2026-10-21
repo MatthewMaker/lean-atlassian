@@ -31,14 +31,14 @@ description: >
 model: claude-sonnet-4-6
 color: blue
 tools:
-  - mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
-  - mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
-  - mcp__claude_ai_Atlassian__searchConfluenceUsingCql
-  - mcp__claude_ai_Atlassian__getJiraIssue
-  - mcp__claude_ai_Atlassian__getConfluencePage
-  - mcp__claude_ai_Atlassian__getConfluencePageDescendants
-  - mcp__claude_ai_Atlassian__getJiraIssueRemoteIssueLinks
-  - mcp__claude_ai_Atlassian__search
+  - mcp__claude_ai_Atlassian_MCP__getAccessibleAtlassianResources
+  - mcp__claude_ai_Atlassian_MCP__searchJiraIssuesUsingJql
+  - mcp__claude_ai_Atlassian_MCP__searchConfluence
+  - mcp__claude_ai_Atlassian_MCP__getJiraIssue
+  - mcp__claude_ai_Atlassian_MCP__getConfluenceContent
+  - mcp__claude_ai_Atlassian_MCP__search
+  - mcp__claude_ai_Atlassian_MCP__executeRead
+  - mcp__claude_ai_Atlassian_MCP__discover
   - Read
   - Bash
 ---
@@ -58,6 +58,29 @@ Obtain it in this order:
 3. If neither is available, call `getAccessibleAtlassianResources` once to
    retrieve the `cloud_id`.
 
+## Tools
+
+These are the Atlassian MCP v2 tools. Call the primary ones directly:
+
+- `searchJiraIssuesUsingJql` — pass `fields` and `maxResults`; both are honoured.
+- `getJiraIssue` — `view: "evidence"` adds the issue's links to other issues.
+- `searchConfluence` — CQL, with `limit`.
+- `getConfluenceContent` — `content_id`, `content_format: "markdown"`, and
+  `detail` (`summary`, `outline`, or `full`).
+- `search` — Rovo semantic search. It can spend up to 10 Rovo credits a call,
+  so prefer JQL/CQL and use it only when those can't express the question.
+
+Reach these through `executeRead(name, cloudId, inputs)`, with `cloudId`
+top-level and never inside `inputs`:
+
+- `getConfluenceContentDescendants` — `inputs: {contentId, depth, limit}`
+- `listJiraIssueRemoteIssueLinks` — Confluence pages and URLs linked from an
+  issue; `inputs: {issueIdOrKey}`
+- `listJiraIssueComments` — `inputs: {issueIdOrKey}`
+
+For any other read, call `discover` with a short goal and use the exact name it
+returns. You have no write tools; don't look for any.
+
 ## Research Protocol
 
 1. **Plan before fetching.** Decide upfront which tools to call and in what
@@ -66,7 +89,9 @@ Obtain it in this order:
 2. **Prefer targeted queries.** Use specific JQL and CQL rather than broad
    searches. Apply project/space scoping whenever possible.
 
-3. **Fetch page content in markdown** (`contentFormat: "markdown"`), never ADF.
+3. **Fetch page content in markdown** (`content_format: "markdown"`) — the
+   default is HTML. Start with `detail: "outline"` and fetch `"full"` only for
+   pages you need to read.
 
 4. **Summarize, don't transcribe.** Read fetched content and extract the
    relevant information. Never include raw JSON or full page bodies in your
@@ -85,12 +110,11 @@ Obtain it in this order:
 7. **Exhaustive enumeration** (only when the dispatcher explicitly asks to list,
    enumerate, or recap **all** matching issues — e.g. an activity recap). Default
    narrowing does not apply here; truncating silently would drop real work.
-   `searchJiraIssuesUsingJql` makes this awkward: it **ignores the `fields`
-   parameter** and floors `maxResults` at ~50, so any result past ~6 issues
-   exceeds the tool-result cap. When it does, the harness **writes the full JSON
-   to a file and returns that path in the error** — it does not truncate. Get the
-   complete set deterministically:
-   - Call the search with `maxResults: 100`. From the overflow error, take the
+   Get the complete set deterministically:
+   - Call the search with `maxResults: 100` and only the digest fields:
+     `fields: ["summary", "status", "priority", "updated"]`. If the result
+     still exceeds the tool-result cap, the harness **writes the full JSON to a
+     file and returns that path in the error** — it does not truncate. Take the
      spilled file path and extract every issue with `jq` (read-only — never
      inline `python3`), e.g.
      `jq -r '.issues.nodes[] | "[\(.key)] \(.fields.summary) — \(.fields.status.name) · \(.fields.priority.name // "—") · \(.fields.updated)"' <file>`.

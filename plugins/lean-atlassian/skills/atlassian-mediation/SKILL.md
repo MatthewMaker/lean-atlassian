@@ -23,6 +23,30 @@ quickly overwhelms the context window. This skill enforces a discipline of
 **digest-first, detail-on-demand**: always summarize before expanding, always
 limit fields fetched, and always cache the cloudId rather than re-fetching it.
 
+## The MCP server (v2)
+
+This plugin targets the Atlassian MCP v2 endpoint (`https://mcp.atlassian.com/v2/mcp`;
+in Claude Code, the `mcp__claude_ai_Atlassian_MCP__*` tools). It exposes tools in
+two layers:
+
+- **Primary tools** — called directly: `searchJiraIssuesUsingJql`, `getJiraIssue`,
+  `createJiraIssue`, `editJiraIssue`, `transitionJiraIssue`,
+  `addOrEditJiraIssueComment`, `searchConfluence`, `getConfluenceContent`,
+  `createConfluenceContent`, `updateConfluenceContent`, `search`, and a few more.
+- **Everything else** — reached through a runner that matches the operation's
+  risk tier: `executeRead`, `executeWrite`, or `executeDestructive`. Pass
+  `name`, a top-level `cloudId` (never inside `inputs`), and a flat `inputs`
+  object:
+
+  ```
+  executeRead(name: "listJiraProjectComponents", cloudId: <from settings>,
+              inputs: {projectIdOrKey: "MYPROJ"})
+  ```
+
+  The operations this skill uses are named below. For anything else, call
+  `discover` with a short goal ("list jira issue transitions") and use the exact
+  name it returns — never guess one.
+
 ## Settings & Cache
 
 All settings live in one uncommitted file, resolved by a cascading lookup —
@@ -46,10 +70,10 @@ frontmatter and injects them into the session:
 | `cloud_id` | Workspace UUID; required on every MCP call | `getAccessibleAtlassianResources` |
 | `site_url` | Site URL for building links | — |
 | `account_id` | Your Jira accountId, for assigning issues to yourself | `atlassianUserInfo` |
-| `project_key` | Default project for searches and new issues | `getVisibleJiraProjects` |
+| `project_key` | Default project for searches and new issues | `listJiraProjects` |
 
 Use the injected values directly. **Never call `getAccessibleAtlassianResources`,
-`atlassianUserInfo`, or `getVisibleJiraProjects` for a value already injected.**
+`atlassianUserInfo`, or `listJiraProjects` for a value already injected.**
 `cloud_id`/`site_url` are required; `account_id`/`project_key` are optional.
 
 If nothing was injected (no config file yet), call `getAccessibleAtlassianResources`
@@ -80,7 +104,8 @@ self-updating note):
   that matches nothing, re-fetch the project's live Components once (one may have
   been added), rewrite the list, then retry.
 - **People cache** — a `Full Name: accountId` list for people you assign or query
-  about. On a name miss, call `lookupJiraAccountId` once, then append it here.
+  about. On a name miss, call `lookupJiraAccountId` (via `executeRead`) once,
+  then append it here.
 
 ```markdown
 ## Component cache (auto-maintained)
@@ -158,25 +183,32 @@ asks to "show the full page" or "show full details".
 
 ### Searching Issues
 
-Use `searchJiraIssuesUsingJql` with a targeted JQL query. Default fields to
-fetch: `summary`, `status`, `assignee`, `priority`, `labels`, `updated`.
+Use `searchJiraIssuesUsingJql` with a targeted JQL query, and always pass
+`fields` and `maxResults` — both are honoured, and `maxResults` defaults to 50.
+Default fields: `summary`, `status`, `assignee`, `priority`, `labels`, `updated`.
 Limit to 10–20 results unless the user asks for more.
 
 ```
 searchJiraIssuesUsingJql(
   cloudId: <from settings>,
   jql: "project = MYPROJ AND status != Done ORDER BY updated DESC",
+  fields: ["summary", "status", "assignee", "priority", "labels", "updated"],
   maxResults: 10
 )
 ```
+
+Issues come back at `.issues.nodes[]`. When `.issues.pageInfo.hasNextPage` is
+true, pass `.issues.pageInfo.endCursor` as `nextPageToken` for the next page.
 
 Produce a digest list. Offer: "Want details on any of these?"
 
 ### Fetching a Single Issue
 
-Use `getJiraIssue` only when the user asks about a specific ticket. Request
-only the fields needed for the current task. Produce a digest, then offer to
-show the full description or comments if needed.
+Use `getJiraIssue` only when the user asks about a specific ticket. The default
+`view: "compact"` is enough for a digest; use `view: "evidence"` when you need
+issue links or custom fields. It reports a comment count, not the comments —
+read those with `listJiraIssueComments` (via `executeRead`) only on request.
+Produce a digest, then offer to show the full description or comments.
 
 ### JQL Patterns
 
@@ -194,33 +226,43 @@ user says otherwise. Layer the prefix→Component behavior below on top.
 
 ### Field placement
 
-`createJiraIssue` spreads its fields across three homes, and passing one to the
-wrong home **fails silently** — an unknown top-level parameter is dropped rather
-than rejected, so the call returns a normal-looking issue with those fields unset.
+`createJiraIssue` spreads its fields across several homes, and passing one to
+the wrong home **fails silently**: the server ignores an unknown top-level
+parameter rather than rejecting it, so the call returns a normal-looking issue
+with that field unset.
 
 | Field | Where it goes |
 |-------|---------------|
 | `summary`, `description`, `projectKey`, `parent` | own top-level parameters |
-| issue type | `issueTypeName` — **not** `issueType` |
-| assignee | `assignee_account_id`, top-level, a bare id string |
-| `priority`, `components`, `labels`, `fixVersions`, `customfield_*` | inside `additional_fields` |
+| issue type | top-level `issueType`, by name (`"Task"`, `"Bug"`) |
+| assignee | top-level `assignee`, a bare accountId string |
+| `priority` | top-level, by name (`"High"`) |
+| `labels` | top-level, a list of strings |
+| sprint | top-level `assignToSprint`, the numeric sprint id as a string |
+| `components`, `fixVersions`, `customfield_*`, anything else | inside `additional_fields` |
 
-`additional_fields` is **snake_case** and takes raw Jira field shapes:
+`additional_fields` is **snake_case**. Keyed by `customfield_*` id or a system
+field, it takes the raw Jira shape:
 
 ```json
-{"components": [{"name": "Frontend"}], "priority": {"name": "Low"}, "customfield_10020": 123}
+{"components": [{"name": "Frontend"}], "customfield_10010": 8}
 ```
 
-Note the asymmetry with `editJiraIssue`, which puts everything — assignee
-included — inside a parameter named **`fields`**:
+`editJiraIssue` is different: it takes a parameter named **`fields`** with raw
+Jira shapes, assignee included, and does not set the sprint at all (see
+**Sprint assignment**):
 
 ```json
 {"assignee": {"accountId": "…"}, "components": [{"name": "Frontend"}]}
 ```
 
-Getting this wrong is not hypothetical. A batch of issues created with a
-camelCase `additionalFields` and a nested `assignee` came back with assignee,
-components, priority and sprint all unset, and each create reported success.
+Getting this wrong is not hypothetical. Under the v1 server, a batch of issues
+created with a camelCase `additionalFields` and a nested `assignee` came back
+with assignee, components, priority and sprint all unset, and each create
+reported success.
+
+A create the server *does* reject comes back with a `repairHint` naming the
+field at fault; correct that field and retry.
 
 This is a "pass the right shape" rule, not a "verify afterwards" rule — it adds no
 follow-up read. See **Sprint assignment** under *Editing Issues* for why a trusted
@@ -244,8 +286,9 @@ When creating an issue:
 
 2. **Get the project's Components.** Read the **Component cache** for this project
    from the settings file first. On a miss — no cached list, or a candidate
-   matches nothing — fetch the live list once via `getJiraIssueTypeMetaWithFields`
-   (read the `components` field's allowed values), then rewrite the cache section.
+   matches nothing — fetch the live list once with `executeRead` and
+   `name: "listJiraProjectComponents"`, `inputs: {projectIdOrKey: <key>}` (read
+   each component's `name`), then rewrite the cache section.
 
 3. **Match case-insensitively.** A candidate resolves to a Component when it
    equals an existing Component name ignoring case — `frontend`, `Frontend`, and
@@ -270,42 +313,42 @@ When creating an issue:
 
 To assign an issue or filter by a person, resolve the name to an accountId via
 the **People cache** in the settings file first. On a miss, call
-`lookupJiraAccountId` once, then append the result to the cache so future
+`lookupJiraAccountId` once (via `executeRead`, `inputs: {query: <name>}`), then
+append the result to the cache so future
 references skip the lookup. Use the injected `account_id` for the current user
 without any lookup.
 
 ## Editing Issues
 
 Use `editJiraIssue` to change fields on an existing issue (assignee, priority,
-sprint, description, etc.).
+description, etc.). Multi-value fields are replaced, not appended: send the full
+list for `labels` and `components`. Status and sprint changes go through
+`transitionJiraIssue` instead.
 
 ### Sprint assignment
 
-Set the sprint by writing the sprint's **numeric id** to `customfield_10020`
-(e.g. `{"customfield_10020": 705}`). The id is the sprint id, **not** the sprint
+Sprints are addressed by the sprint's **numeric id**, **not** the sprint
 number.
 
-**Do not verify the assignment afterward when the id came from a trusted cache.**
-`editJiraIssue` omits `customfield_10020` from its response payload on success —
-the missing sprint field is a quirk of the response shape, not a signal that the
-write failed. When the sprint id is a **cached/known-good identifier** (e.g. the
-current-sprint id maintained in project settings, `CLAUDE.md`, or `AGENTS.md`), a
-non-error response means the edit took. Skip the follow-up `getJiraIssue` — it
-spends context confirming something the absence of an error already told you.
+- **New issue**: pass `assignToSprint: "<id>"` to `createJiraIssue`. The response
+  reports `sprintAssignment.assigned`. If it is `false`, the issue was still
+  created — don't create it again; move it with `transitionJiraIssue` below.
+- **Existing issue**: call `transitionJiraIssue` with `issueIdOrKey` and
+  `sprintId: <id>` (an integer). No workflow transition is needed alongside it.
+  `assignToBacklog: true` moves it out of a sprint instead.
 
-(If the id is *unverified* — a number the user supplied that may not be a real,
-open sprint on this board — a bad id can be silently rejected; there, a single
-confirming read is warranted. The no-verify rule applies specifically to cached
-ids you already trust.)
+**Don't follow either with `getJiraIssue` to check.** Both responses say whether
+the sprint move happened; a confirming read spends context on something the
+response already told you.
 
 ## Confluence Workflows
 
 ### Searching Pages
 
-Use `searchConfluenceUsingCql` with a focused CQL query. Limit to 10 results.
+Use `searchConfluence` with a focused CQL query. Limit to 10 results.
 
 ```
-searchConfluenceUsingCql(
+searchConfluence(
   cloudId: <from settings>,
   cql: "title ~ \"deployment\" AND space.key = \"ENG\" AND type = page",
   limit: 10
@@ -317,10 +360,20 @@ excerpt. Do **not** fetch full page content during a search.
 
 ### Fetching a Page
 
-Use `getConfluencePage` only when the user asks to "read", "open", or "show"
-a specific page. Request `markdown` format (not `adf`) for readability.
+Use `getConfluenceContent` only when the user asks to "read", "open", or "show"
+a specific page. Pass `content_id` (or `content_url` for a pasted link) and
+`content_format: "markdown"` — the default is HTML, which costs far more tokens.
 
-Even after fetching, **summarize the page** rather than dumping the full body:
+Its `detail` parameter sets how much comes back. Start cheap and expand on
+request:
+
+| `detail` | Returns | Use for |
+|----------|---------|---------|
+| `summary` (default) | title, excerpt, counts | a digest line |
+| `outline` | the heading tree | the table of contents |
+| `full` | the whole body | reading a section the user asked for |
+
+Even after a `full` fetch, **summarize the page** rather than dumping the body:
 - Section headings as a table of contents
 - A 2–3 sentence abstract
 - Offer: "Want me to read a specific section?"
@@ -343,7 +396,7 @@ Apply these limits at all times:
 | CQL search | 10 | Never in search |
 | Single Jira issue | 1 | Digest only; full on request |
 | Single Confluence page | 1 | Summarize; section on request |
-| Page descendants | 10 | Titles only |
+| Page descendants (`getConfluenceContentDescendants`, via `executeRead`) | 10 | Titles only |
 
 If the user asks for "all issues" or "everything", explain that fetching
 everything would flood the context, then offer a targeted query instead.
