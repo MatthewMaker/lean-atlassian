@@ -218,8 +218,15 @@ shellcheck plugins/*/hooks/*.sh tests/*.sh
 claude plugin validate .
 ```
 
-CI runs all six on every pull request. See [CHANGELOG.md](CHANGELOG.md) for
-version history.
+CI runs all six on every pull request.
+
+To release, bump `version` in `plugins/lean-atlassian/.claude-plugin/plugin.json`
+and rename the CHANGELOG's `[Unreleased]` entries to a matching
+`## [x.y.z] - date` heading in the same PR — the manifest check fails if the two
+disagree. Once that merges and CI passes on `main`, CI tags `vx.y.z` and
+publishes a GitHub Release with that CHANGELOG section as its notes. Installed
+copies pick it up on `claude plugin update`, which keys on the version. See
+[CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 

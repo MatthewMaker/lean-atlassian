@@ -20,7 +20,11 @@ shellcheck plugins/*/hooks/*.sh tests/*.sh   # .shellcheckrc makes it follow lib
 claude plugin validate .       # schema; runs unauthenticated
 ```
 
-CI runs all six on every PR.
+CI runs all six on every PR. On `main`, a `release` job then tags and
+releases the `plugin.json` version if it isn't tagged yet, using its CHANGELOG
+section as the notes. `manifest-invariants.sh` fails unless the newest
+`## [x.y.z]` CHANGELOG heading equals that version, so a release is a version
+bump plus a CHANGELOG heading in the same PR.
 
 The hooks' governing invariant: they must always emit valid JSON on stdout —
 `{}` when there's nothing to say, never an error or a bare message. They fail

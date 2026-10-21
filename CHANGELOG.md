@@ -8,6 +8,18 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Added
+
+- CI `release` job: after checks pass on `main`, tags `v<version>` from
+  `plugin.json` and publishes a GitHub Release with that version's CHANGELOG
+  section, unless the tag already exists.
+
+### Changed
+
+- `tests/manifest-invariants.sh` now requires the newest released CHANGELOG
+  heading to equal the `plugin.json` version, not just to appear somewhere.
+- CI no longer cancels in-flight runs on `main`, only on pull requests.
+
 ## [0.8.0] - 2026-10-21
 
 The plugin now targets the Atlassian MCP v2 server, which breaks installs still

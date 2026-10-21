@@ -67,18 +67,19 @@ strays="$(git ls-files '*.md' | xargs grep -ln '^version:' 2>/dev/null || true)"
 [[ -z "$strays" ]] || fail "unexpected 'version:' frontmatter in: $strays"
 ok "no stray version declarations in Markdown"
 
-# 6. Every declared version must appear in the changelog. Catches a bump that
-#    ships with no note, and a changelog entry left open after a release.
+# 6. The newest released changelog heading must be the declared version. Catches
+#    a bump that ships with no note, and a release heading added without a bump.
+#    CI's release job tags whatever plugin.json declares, with that heading's
+#    section as the release notes, so the two must agree before a merge to main.
 if [[ -f CHANGELOG.md ]]; then
     while IFS= read -r manifest; do
         v="$(jq -r '.version // empty' "$manifest")"
         [[ -n "$v" ]] || continue
-        # Dots are regex metacharacters; the heading match must be literal.
-        vesc="${v//./\\.}"
-        grep -qE "^## \[$vesc\]" CHANGELOG.md \
-            || fail "CHANGELOG.md has no '## [$v]' heading for the version in $manifest"
+        top="$(sed -nE 's/^## \[([0-9][^]]*)\].*/\1/p' CHANGELOG.md | head -1)"
+        [[ "$top" == "$v" ]] \
+            || fail "newest CHANGELOG.md release is '${top:-none}', but $manifest declares '$v'"
     done < <(git ls-files '*/.claude-plugin/plugin.json')
-    ok "changelog covers each declared version"
+    ok "newest changelog release matches the declared version"
 fi
 
 # 7. Declared hook commands must exist and be executable.
