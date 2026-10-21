@@ -1,88 +1,124 @@
 # Atlassian MCP Tools Reference
 
-Quick reference for all available tools from the Atlassian MCP server.
+Quick reference for the Atlassian MCP v2 server
+(`https://mcp.atlassian.com/v2/mcp`). In Claude Code the tools are
+`mcp__claude_ai_Atlassian_MCP__<name>`.
+
+The server has two layers. **Primary tools** are called directly. **Operations**
+are reached through a runner matching their risk tier — `executeRead`,
+`executeWrite`, `executeDestructive` — with a top-level `cloudId`, the operation
+`name`, and a flat `inputs` object:
+
+```
+executeRead(name: "listJiraIssueTransitions", cloudId: <from settings>,
+            inputs: {issueIdOrKey: "MYPROJ-123"})
+```
+
+Use only operation names listed here or returned by `discover`; never guess one.
+`responseFields` (dot paths, e.g. `["key", "fields.summary"]`) trims any runner's
+response.
 
 ## Authentication / Setup
 
 | Tool | Purpose | When to use |
 |------|---------|-------------|
-| `atlassianUserInfo` | Get current user info | Rarely needed; useful for debugging auth |
-| `getAccessibleAtlassianResources` | Get cloudId and site info | Only if `cloud_id` not in settings file |
+| `atlassianUserInfo` | Get the current user's accountId | Only if `account_id` isn't in the settings file |
+| `getAccessibleAtlassianResources` | Get cloudId and site info | Only if `cloud_id` isn't in the settings file |
+| `discover` | Find an operation by goal (`query: "list confluence spaces"`) | When you need an operation not listed here |
 
 ## Search
 
 | Tool | Purpose | Key params |
 |------|---------|-----------|
-| `search` | General cross-product search | `cloudId`, `query`, `limit` |
-| `searchJiraIssuesUsingJql` | JQL-based Jira search | `cloudId`, `jql`, `maxResults` |
-| `searchConfluenceUsingCql` | CQL-based Confluence search | `cloudId`, `cql`, `limit` |
+| `searchJiraIssuesUsingJql` | JQL-based Jira search | `cloudId`, `jql`, `fields`, `maxResults` (default 50, max 100), `nextPageToken` |
+| `searchConfluence` | CQL-based Confluence search | `cloudId`, `cql`, `limit` (default 25), `cursor` |
+| `search` | Rovo semantic search across Jira, Confluence, and connected apps | `cloudId`, `query`, `targetApp`, `limit` (10–30) |
 
-**Prefer the specific tools** (`searchJiraIssuesUsingJql`, `searchConfluenceUsingCql`) over
-the general `search` — they return cleaner, more structured results.
+**Prefer the JQL/CQL tools** over `search`. They return structured, scoped
+results, and `search` can spend up to 10 Rovo credits per call (it fails when
+the org has none left).
+
+`searchJiraIssuesUsingJql` honours `fields`; issues are at `.issues.nodes[]`, and
+paging is at `.issues.pageInfo` — pass `endCursor` as `nextPageToken` while
+`hasNextPage` is true.
 
 ## Jira
 
-### Read Operations
+### Primary tools
 
 | Tool | Purpose | Key params |
 |------|---------|-----------|
-| `getJiraIssue` | Fetch a single issue by key | `cloudId`, `issueIdOrKey` |
-| `getVisibleJiraProjects` | List accessible projects | `cloudId` |
-| `getJiraProjectIssueTypesMetadata` | Get issue types for a project | `cloudId`, `projectIdOrKey` |
-| `getTransitionsForJiraIssue` | List valid status transitions | `cloudId`, `issueIdOrKey` |
-| `getJiraIssueRemoteIssueLinks` | Get linked external issues | `cloudId`, `issueIdOrKey` |
+| `getJiraIssue` | Fetch a single issue | `cloudId`, `issueIdOrKey`, `view` (`compact` default; `evidence` adds issue links and custom fields) |
+| `createJiraIssue` | Create an issue | `cloudId`, `projectKey`, `summary`, `issueType`; top-level `assignee` (accountId), `priority`, `labels`, `parent`, `assignToSprint` (sprint id); components/fixVersions/custom fields in `additional_fields` |
+| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, `fields` (raw Jira shapes, assignee included as `{"accountId": …}`); multi-value fields are replaced, not appended |
+| `transitionJiraIssue` | Change status and/or sprint | `cloudId`, `issueIdOrKey`, `transitionId` or `transitionName`, `sprintId` (integer), `assignToBacklog` |
+| `addOrEditJiraIssueComment` | Add a comment, or edit one by `commentId` | `cloudId`, `issueIdOrKey`, `commentBody` (markdown) |
 
-### Write Operations
+An unknown top-level parameter is silently ignored, not rejected — a field in
+the wrong place leaves it unset with no error. See SKILL.md's *Field placement*.
 
-| Tool | Purpose | Key params |
-|------|---------|-----------|
-| `createJiraIssue` | Create a new issue | `cloudId`, `projectKey`, `summary`, `issueTypeName`; assignee via `assignee_account_id`; priority/components/labels/custom fields via `additional_fields` |
-| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, `fields` (assignee included — unlike create) |
-| `transitionJiraIssue` | Move issue to new status | `cloudId`, `issueIdOrKey`, `transitionId` |
-| `addCommentToJiraIssue` | Add a comment | `cloudId`, `issueIdOrKey`, `body` |
-| `addWorklogToJiraIssue` | Log time | `cloudId`, `issueIdOrKey`, `timeSpent` |
-| `lookupJiraAccountId` | Find a user's account ID | `cloudId`, `query` |
-| `createIssueLink` | Link two issues | `cloudId`, `inwardIssue`, `outwardIssue`, `type` — all **plain strings** (`"MYPROJ-123"`, `"Relates"`), not objects |
+### Operations
+
+| Operation | Runner | Purpose | Key inputs |
+|-----------|--------|---------|-----------|
+| `listJiraProjects` | `executeRead` | Projects the user can see | `query` |
+| `listJiraProjectComponents` | `executeRead` | A project's Components | `projectIdOrKey` |
+| `listJiraProjectIssueTypesMetadata` | `executeRead` | Issue types for a project | `projectIdOrKey` |
+| `getJiraIssueTypeMetaWithFields` | `executeRead` | Create fields for one issue type | `projectIdOrKey`, `issueTypeId` |
+| `lookupJiraAccountId` | `executeRead` | A user's accountId by name or email | `query` |
+| `listJiraIssueAssignableUsers` | `executeRead` | Users who can be assigned in a project | `project` or `issueKey`, `query` |
+| `listJiraIssueTransitions` | `executeRead` | Valid status transitions for an issue | `issueIdOrKey` |
+| `listJiraIssueComments` | `executeRead` | An issue's comments | `issueIdOrKey` |
+| `listJiraIssueRemoteIssueLinks` | `executeRead` | Web links (Confluence pages, URLs) on an issue | `issueIdOrKey` |
+| `listJiraIssueLinkTypes` | `executeRead` | Link type names and their wording | — |
+| `createJiraIssueLink` | `executeWrite` | Link two issues | `linkType`, `inwardIssue`, `outwardIssue` — plain strings (`"Blocks"`, `"MYPROJ-1"`) |
+| `addOrEditJiraIssueWorklog` | `executeWrite` | Log time, or edit a worklog by `worklogId` | `issueIdOrKey`, `timeSpent` (`"2h 30m"`), `comment` |
 
 ## Confluence
 
-### Read Operations
+### Primary tools
 
 | Tool | Purpose | Key params |
 |------|---------|-----------|
-| `getConfluencePage` | Fetch a page by ID | `cloudId`, `pageId`, `contentFormat` |
-| `getConfluencePageDescendants` | List child pages | `cloudId`, `pageId` |
-| `getConfluenceSpaces` | List accessible spaces | `cloudId` |
-| `getConfluencePageFooterComments` | Get footer comments | `cloudId`, `pageId` |
-| `getConfluencePageInlineComments` | Get inline comments | `cloudId`, `pageId` |
+| `getConfluenceContent` | Read a page, blog post, or other content | `cloudId`, `content_id` or `content_url`, `content_format` (`html` default — pass `markdown`), `detail` (`summary` default, `outline`, `full`) |
+| `createConfluenceContent` | Create a page or other content | `cloudId`, `parent` (`{spaceId}` and/or `{parentContentId}`), `contentType` (`page`), `title`, `body` (`{format, value}`) |
+| `updateConfluenceContent` | Edit content | `cloudId`, `contentId`, `snapshotToken` (from a prior `getConfluenceContent`), `body` or `edits` |
 
-### Write Operations
+Before authoring a body for create or update, the server asks for its format
+guide: `executeRead(name: "getContentFormatGuide", inputs: {toolName: "createConfluencePage"})`
+(or `updateConfluencePage`).
+
+### Operations
+
+| Operation | Runner | Purpose | Key inputs |
+|-----------|--------|---------|-----------|
+| `getConfluenceContentDescendants` | `executeRead` | Child pages | `contentId`, `depth` (default 2), `limit` |
+| `listConfluenceSpaces` | `executeRead` | Accessible spaces | `keys`, `limit` |
+| `getConfluenceSpace` | `executeRead` | One space, with its authoring instructions | `spaceIdOrKey` |
+| `listConfluenceComments` | `executeRead` | A page's footer and inline comments | `content-id`, `comment-type` |
+| `createConfluenceComment` | `executeWrite` | Add a comment, or reply to one | `contentId`, `commentType` (`footer`/`inline`), `body` (`{format, value}`) |
+
+## Teamwork Graph
 
 | Tool | Purpose | Key params |
 |------|---------|-----------|
-| `createConfluencePage` | Create a new page | `cloudId`, `spaceId`, `title`, `body` |
-| `updateConfluencePage` | Edit a page | `cloudId`, `pageId`, `version`, `body` |
-| `createConfluenceFooterComment` | Add footer comment | `cloudId`, `pageId`, `body` |
-| `createConfluenceInlineComment` | Add inline comment | `cloudId`, `pageId`, `body`, `inlineMarker` |
+| `getGraphContext` | Relationships around an entity, across products | `cloudId`, `objectType`, `objectIdentifier` |
+| `getGraphObject` | Full data for ARIs or URLs from `getGraphContext` | `cloudId`, `objects` (≤ 25) |
 
-## General
-
-| Tool | Purpose | Key params |
-|------|---------|-----------|
-| `fetch` | Fetch by ARI (Atlassian Resource Identifier) | `id` (ARI string) |
-
-Use `fetch` when you have an ARI from search results and need full details.
-ARIs look like: `ari:cloud:jira:CLOUD_ID:issue/10107`
+Both can spend Rovo credits. Use them for "what's connected to X" questions,
+not for fetching a single issue or page.
 
 ## cloudId Notes
 
-- Every tool requires `cloudId` except `atlassianUserInfo` and `getAccessibleAtlassianResources`
+- Every tool requires `cloudId` except `atlassianUserInfo`,
+  `getAccessibleAtlassianResources`, and `discover`
+- On the `execute*` runners, `cloudId` is a top-level argument, never inside `inputs`
 - `cloudId` is a UUID, e.g., `"a1b2c3d4-1234-5678-abcd-ef0123456789"`
-- Read from `.claude/lean-atlassian.local.md` settings file
-- If not set, call `getAccessibleAtlassianResources` once and cache
+- Read from the settings file; if not set, call `getAccessibleAtlassianResources`
+  once and cache
 
 ## Content Format Notes
 
-For `getConfluencePage`, always use `contentFormat: "markdown"` rather than `"adf"`.
-ADF (Atlassian Document Format) is verbose JSON that bloats context significantly.
-Markdown is human-readable and token-efficient.
+For `getConfluenceContent`, always pass `content_format: "markdown"`. The default
+is HTML, which is far more verbose. Start with `detail: "summary"` or
+`"outline"`, and fetch `"full"` only for the part the user wants to read.

@@ -29,6 +29,20 @@ carried the version bump in `plugin.json`.
 
 ### Changed
 
+- **Breaking:** the commands, agent, skill, and references now target the
+  Atlassian MCP v2 server (`https://mcp.atlassian.com/v2/mcp`, tools
+  `mcp__claude_ai_Atlassian_MCP__*`). The v1 SSE server, which Atlassian
+  stopped supporting after 2026-06-30, is no longer supported. Renamed tools:
+  `searchConfluenceUsingCql` → `searchConfluence`, `getConfluencePage` →
+  `getConfluenceContent`, `addCommentToJiraIssue` →
+  `addOrEditJiraIssueComment`. Project, Component, account, descendant, and
+  remote-link lookups now go through `executeRead`.
+- `createJiraIssue` field placement follows v2: `issueType`, `assignee`,
+  `priority`, `labels`, and `assignToSprint` are top-level. Sprint moves on
+  existing issues use `transitionJiraIssue`'s `sprintId` instead of writing
+  `customfield_10020` with `editJiraIssue`.
+- Confluence page reads ask for `content_format: "markdown"` and start from
+  `detail: "outline"`, fetching the full body only when needed.
 - The settings cascade moved into `hooks/lib.sh`, shared by both hooks. When
   the project's `.claude/` is the config directory itself (a session started
   in `$HOME`), the file is now treated as global rather than project-tier.

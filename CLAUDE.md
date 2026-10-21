@@ -71,7 +71,7 @@ explicitness:
   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lean-atlassian.local.md` — and injects
   its scalar frontmatter fields as `additionalContext`, so the other components
   never call `getAccessibleAtlassianResources`, `atlassianUserInfo`, or
-  `getVisibleJiraProjects`.
+  `listJiraProjects`.
 - **`atlassian-mediation` skill** is the source of truth for behavior: digest
   formats, JQL/CQL rules, context budgets, prefix→Component mapping, and MCP
   field placement.
@@ -110,19 +110,28 @@ list-shaped or project-specific in the body.
 
 ## MCP shapes that fail silently
 
-Documented in SKILL.md and `references/mcp-tools-reference.md`:
+The plugin targets the Atlassian MCP v2 server; tools are
+`mcp__claude_ai_Atlassian_MCP__*`, and operations without a primary tool go
+through `executeRead`/`executeWrite`/`executeDestructive` with a top-level
+`cloudId`. Documented in SKILL.md and `references/mcp-tools-reference.md`:
 
-- `createJiraIssue`: issue type is `issueTypeName`; assignee is a bare id string
-  in top-level `assignee_account_id`; priority/components/labels/`customfield_*`
-  go inside snake_case `additional_fields`. Unknown top-level params are dropped
-  and the create still reports success.
-- `editJiraIssue`: everything, assignee included, goes inside `fields`.
-- Sprint is `customfield_10020` and takes the numeric sprint id, not the sprint
-  number. A successful edit omits it from the response; with a trusted id that's
-  a display quirk, not a failure.
-- `searchJiraIssuesUsingJql` ignores `fields` and floors `maxResults` at ~50; on
-  overflow the harness spills full JSON to a file and returns the path. Issues
-  are at `.issues.nodes[]`, paging at `.issues.pageInfo`.
+- The server ignores unknown top-level params rather than rejecting them,
+  despite its schemas declaring `additionalProperties: false`. A field in the
+  wrong place is left unset with no error.
+- `createJiraIssue`: `issueType`, `assignee` (bare accountId), `priority`,
+  `labels`, `parent`, and `assignToSprint` are top-level;
+  components/fixVersions/`customfield_*` go inside snake_case
+  `additional_fields`.
+- `editJiraIssue`: raw Jira shapes inside `fields`, assignee included. It
+  doesn't move sprints or change status — `transitionJiraIssue` does both
+  (`sprintId`, `transitionId`).
+- Sprints take the numeric sprint id, not the sprint number.
+- `searchJiraIssuesUsingJql` honours `fields` and `maxResults` (default 50,
+  max 100). Issues are at `.issues.nodes[]`, paging at `.issues.pageInfo`
+  (`endCursor` → `nextPageToken`). A large result can still overflow; the
+  harness then spills full JSON to a file and returns the path.
+- `getConfluenceContent` returns HTML unless `content_format: "markdown"` is
+  passed, and only a summary unless `detail` says otherwise.
 
 ## Documentation is the product
 

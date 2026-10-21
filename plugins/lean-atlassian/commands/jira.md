@@ -7,13 +7,11 @@ description: >
   find, or a "create ..." request.
 argument-hint: "<issue-key | jql | query | create ...>"
 allowed-tools:
-  - mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
-  - mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
-  - mcp__claude_ai_Atlassian__getJiraIssue
-  - mcp__claude_ai_Atlassian__getVisibleJiraProjects
-  - mcp__claude_ai_Atlassian__createJiraIssue
-  - mcp__claude_ai_Atlassian__getJiraIssueTypeMetaWithFields
-  - mcp__claude_ai_Atlassian__lookupJiraAccountId
+  - mcp__claude_ai_Atlassian_MCP__getAccessibleAtlassianResources
+  - mcp__claude_ai_Atlassian_MCP__searchJiraIssuesUsingJql
+  - mcp__claude_ai_Atlassian_MCP__getJiraIssue
+  - mcp__claude_ai_Atlassian_MCP__createJiraIssue
+  - mcp__claude_ai_Atlassian_MCP__executeRead
 ---
 
 ## /jira Command
@@ -59,18 +57,21 @@ reinvent it. In brief:
    issue type to `Task` unless the request names one (bug/story/epic/…).
 2. **Prefixes → Components**: parse leading `Token: ` prefixes from the summary
    and match them case-insensitively against the project's Components (from the
-   settings-file Component cache; fetch via `getJiraIssueTypeMetaWithFields` and
-   refresh the cache on a miss). Add every match to `components`; leave unmatched
+   settings-file Component cache; fetch via `executeRead` →
+   `listJiraProjectComponents` and refresh the cache on a miss). Add every match to `components`; leave unmatched
    prefixes in the summary. Strip matched prefixes from the summary unless
    `component_prefix_strip: false`.
 3. **Assignee**: resolve any named assignee via the People cache /
-   `lookupJiraAccountId`; use the injected `account_id` for "assign to me".
-4. **Create** with `createJiraIssue`, then confirm with the digest below. Since
+   `executeRead` → `lookupJiraAccountId`; use the injected `account_id` for
+   "assign to me".
+4. **Create** with `createJiraIssue`, placing each field where the skill's
+   **Field placement** table says, then confirm with the digest below. Since
    `/jira create …` is explicit authorization, create directly — but if the
    project is unknown, ask first rather than guessing.
 
 3. **Fetch results**:
-   - For searches: request at most 15 results. Do not fetch full issue bodies.
+   - For searches: pass `maxResults` (at most 15) and the digest `fields`. Do
+     not fetch full issue bodies.
    - For single issue: fetch the issue. Produce a digest, not the raw JSON.
 
 4. **Output digest**:

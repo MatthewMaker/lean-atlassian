@@ -2,15 +2,14 @@
 name: confluence
 description: >
   Search Confluence pages or fetch a specific page. Produces digest-style
-  output to minimize context usage. Accepts a page ID, a CQL query, or a
-  plain-text description of what to find.
-argument-hint: "<page-id | cql | natural language query>"
+  output to minimize context usage. Accepts a page ID or URL, a CQL query,
+  or a plain-text description of what to find.
+argument-hint: "<page-id | page-url | cql | natural language query>"
 allowed-tools:
-  - mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
-  - mcp__claude_ai_Atlassian__searchConfluenceUsingCql
-  - mcp__claude_ai_Atlassian__getConfluencePage
-  - mcp__claude_ai_Atlassian__getConfluencePageDescendants
-  - mcp__claude_ai_Atlassian__getConfluenceSpaces
+  - mcp__claude_ai_Atlassian_MCP__getAccessibleAtlassianResources
+  - mcp__claude_ai_Atlassian_MCP__searchConfluence
+  - mcp__claude_ai_Atlassian_MCP__getConfluenceContent
+  - mcp__claude_ai_Atlassian_MCP__executeRead
 ---
 
 ## /confluence Command
@@ -32,9 +31,11 @@ Perform a focused Confluence search or page fetch and return a compact digest.
 
 2. **Interpret the argument**:
    - If it looks like a numeric page ID (all digits): fetch that page with
-     `getConfluencePage`.
+     `getConfluenceContent` (`content_id`).
+   - If it's a Confluence URL: fetch that page with `getConfluenceContent`
+     (`content_url`).
    - If it looks like CQL (contains `~`, `AND`, `type =`, `space.key`): use it
-     directly with `searchConfluenceUsingCql`.
+     directly with `searchConfluence`.
    - Otherwise: treat as a natural-language query. Convert it to a CQL query.
      Examples:
      - "deployment runbooks" → `text ~ "deployment" AND type = page AND label = "runbook" ORDER BY lastModified DESC`
@@ -42,9 +43,11 @@ Perform a focused Confluence search or page fetch and return a compact digest.
      - "recently updated pages" → `type = page AND lastModified >= -7d ORDER BY lastModified DESC`
 
 3. **Fetch results**:
-   - For searches: limit to 10 results. Do not fetch page bodies during search.
-   - For single page fetch: use `contentFormat: "markdown"`. Summarize; do not
-     dump the full body.
+   - For searches: pass `limit: 10`. Do not fetch page bodies during search.
+   - For single page fetch: use `content_format: "markdown"` and
+     `detail: "outline"` for the table of contents; fetch `detail: "full"` only
+     to write the abstract or read a section. Summarize; do not dump the full
+     body.
 
 4. **Output digest**:
 
@@ -83,7 +86,8 @@ Perform a focused Confluence search or page fetch and return a compact digest.
 
 ### Rules
 
-- Always use `contentFormat: "markdown"` when fetching pages — never `adf`.
+- Always pass `content_format: "markdown"` when fetching pages — the default is
+  HTML.
 - Never dump the full page body unprompted, even if it was fetched. Summarize first.
 - If the page is very long (>200 lines of markdown), offer to read specific
   sections by heading rather than showing everything.

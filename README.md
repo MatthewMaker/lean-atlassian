@@ -35,8 +35,12 @@ window with noise.
 
 ## Prerequisites
 
-- Atlassian MCP server configured in Claude Code
-  (`mcp__claude_ai_Atlassian__*` tools available)
+- The Atlassian MCP **v2** server (`https://mcp.atlassian.com/v2/mcp`) connected
+  in Claude Code, as the claude.ai connector named "Atlassian MCP"
+  (`mcp__claude_ai_Atlassian_MCP__*` tools available). The commands and agent
+  name those tools exactly; the legacy v1 SSE server
+  (`https://mcp.atlassian.com/v1/sse`, `mcp__claude_ai_Atlassian__*`) is no
+  longer supported by Atlassian or by this plugin.
 - An Atlassian account with access to your workspace
 
 ## Setup

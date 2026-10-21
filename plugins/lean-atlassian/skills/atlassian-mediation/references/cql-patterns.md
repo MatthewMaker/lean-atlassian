@@ -1,6 +1,6 @@
 # CQL Patterns for Confluence
 
-Common CQL query templates for use with `searchConfluenceUsingCql`.
+Common CQL query templates for use with `searchConfluence`.
 
 ## Basic Search
 
