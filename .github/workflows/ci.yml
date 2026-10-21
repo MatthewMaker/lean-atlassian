@@ -5,10 +5,11 @@ on:
     branches: [main]
   pull_request:
 
-# A new push supersedes any run still in flight for the same ref.
+# A new push to a PR supersedes any run still in flight for it. Runs on main
+# aren't cancelled: the release job must not stop between tag and release.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   shell:
@@ -57,3 +58,34 @@ jobs:
       # version is declared exactly once.
       - name: Manifest invariants
         run: tests/manifest-invariants.sh
+
+  # Tags and releases the version in plugin.json once checks pass on main.
+  # A version that's already tagged is left alone, so ordinary merges are
+  # no-ops. Manifest invariants guarantee the CHANGELOG has a matching section.
+  release:
+    name: Release
+    needs: [shell, manifests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag and release a new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(jq -r .version plugins/lean-atlassian/.claude-plugin/plugin.json)"
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists; nothing to release."
+            exit 0
+          fi
+          awk -v h="## [$version]" 'index($0, h) == 1 { f = 1; next } f && /^## \[/ { exit } f' \
+            CHANGELOG.md > notes.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
+          gh release create "$tag" --verify-tag --title "$tag" --notes-file notes.md
