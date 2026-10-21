@@ -13,6 +13,26 @@ carried the version bump in `plugin.json`.
 - `.github/` issue forms, pull request template, and `CODEOWNERS`.
 - `SECURITY.md`, describing what the settings file holds and how to report a
   finding.
+- `PreToolUse` hook `approve-listed-operations.sh`: auto-approves Atlassian
+  MCP v2 `executeRead`/`executeWrite` calls whose operation is listed under
+  `## Auto-approved operations` in the resolved settings file. A project
+  file's list counts only once the user has confirmed that exact set of
+  operations; `executeDestructive` is never approved; anything unlisted falls
+  through to the normal prompt. Requires `jq`.
+- `trust-approval-list.sh`, which Claude runs after the user confirms a
+  project list. Confirmations live in `${CLAUDE_PLUGIN_DATA}/trusted-lists`.
+- One-time offers from the `SessionStart` hook, at most one per session and
+  never repeated once made: copy a global-only setup into the current git
+  repo's `.claude/`; add an `## Auto-approved operations` section where there
+  is none; confirm an unconfirmed project list.
+- `tests/approve-operations.sh` and `tests/offers.sh`, run in CI.
+
+### Changed
+
+- The settings cascade moved into `hooks/lib.sh`, shared by both hooks. When
+  the project's `.claude/` is the config directory itself (a session started
+  in `$HOME`), the file is now treated as global rather than project-tier.
+- `.shellcheckrc` lets shellcheck follow the sourced `lib.sh`.
 
 ## [0.7.0] - 2026-09-21
 

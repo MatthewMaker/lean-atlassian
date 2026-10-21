@@ -1,0 +1,3 @@
+# The hooks source hooks/lib.sh; resolve it relative to each script and follow it.
+source-path=SCRIPTDIR
+external-sources=true
