@@ -8,6 +8,12 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-21
+
+The plugin now targets the Atlassian MCP v2 server, which breaks installs still
+on the v1 SSE connector: connect `https://mcp.atlassian.com/v2/mcp` in Claude
+Code (the claude.ai "Atlassian MCP" connector). Settings files are unaffected.
+
 ### Added
 
 - `.github/` issue forms, pull request template, and `CODEOWNERS`.
