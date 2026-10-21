@@ -14,49 +14,27 @@
 # environment, so it can resolve the user's actual (possibly non-default)
 # config directory.
 #
-# Cascade — first match wins. Both tiers accept the legacy
-# `private-atlassian.local.md` name the plugin used before it was renamed, so an
-# existing setup keeps working untouched:
-#   1. $CLAUDE_PROJECT_DIR/.claude/lean-atlassian.local.md
-#   2. $CLAUDE_PROJECT_DIR/.claude/private-atlassian.local.md      (legacy)
-#   3. ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lean-atlassian.local.md
-#   4. ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/private-atlassian.local.md  (legacy)
+# The settings file is resolved by the first-match cascade in lib.sh: project
+# `.claude/` before the global config dir, and the current filename before the
+# legacy `private-atlassian.local.md` within each tier.
 #
-# Project beats global at both names, preserving the per-project override.
+# It also injects at most one one-time offer per session (see "One-time offers"
+# below) when $CLAUDE_PLUGIN_DATA is available to remember what was offered.
 #
 # Emitting `{}` (no additionalContext) when nothing is configured keeps the
 # hook silent; the commands/skill then fall back to a one-time MCP lookup.
 
-# Resolve the project root (override tier) and config dir (global tier).
-proj="${CLAUDE_PROJECT_DIR:-$PWD}"
-cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-
-# Candidate paths in precedence order; the current name is tried before the
-# legacy one within each tier.
-file=""
-src=""
-for candidate in \
-    "$proj/.claude/lean-atlassian.local.md" \
-    "$proj/.claude/private-atlassian.local.md" \
-    "$cfg/lean-atlassian.local.md" \
-    "$cfg/private-atlassian.local.md"
-do
-    if [[ -f "$candidate" ]]; then
-        file="$candidate"
-        # Report project-tier hits relative to the project, global ones absolute.
-        case "$candidate" in
-            "$proj/"*) src="project ${candidate#"$proj/"}" ;;
-            *)         src="$candidate" ;;
-        esac
-        break
-    fi
-done
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "$here/lib.sh"
 
 # Nothing configured anywhere → stay silent and let the MCP fallback handle it.
-if [[ -z "$file" ]]; then
+if ! resolve_settings; then
     echo '{}'
     exit 0
 fi
+file="$settings_file"
+src="$settings_src"
 
 # Read one YAML frontmatter field: strip the key, surrounding quotes, and
 # trailing whitespace. Returns empty (never errors) when the key is absent.
@@ -99,6 +77,72 @@ ctx+="- site_url: ${site_url}\n"
 [[ -n "$account_id" ]] && ctx+="- account_id: ${account_id} (your Jira accountId — use for assignment; do NOT call atlassianUserInfo)\n"
 [[ -n "$project_key" ]] && ctx+="- project_key: ${project_key} (default Jira project for searches and new issues)\n"
 ctx+="\n(loaded from ${src})"
+
+# --- One-time offers ---------------------------------------------------------
+#
+# Three offers, at most one per session, each made at most once — the marker is
+# written when the offer is injected, so a declined offer doesn't come back:
+#
+#   copy     only the global file exists and the session is in a git repo:
+#            offer to copy it into this repo's .claude/ (once per repo)
+#   add      the resolved file has no `## Auto-approved operations` section:
+#            offer to add one (once per file)
+#   confirm  a project file's approval list isn't confirmed, so
+#            approve-listed-operations.sh is ignoring it: offer to confirm it
+#            (once per file per set of operations)
+#
+# Without $CLAUDE_PLUGIN_DATA nothing can be remembered, so nothing is offered.
+
+data="${CLAUDE_PLUGIN_DATA:-}"
+proj="${CLAUDE_PROJECT_DIR:-$PWD}"
+
+# True (and recorded) the first time KEY is offered; false every time after.
+offer_once() {
+    local marker
+    [[ -n "$data" ]] || return 1
+    marker="$data/offers/$(printf '%s' "$1" | sha256)"
+    [[ -e "$marker" ]] && return 1
+    mkdir -p "$data/offers" 2>/dev/null && printf '%s\n' "$1" > "$marker" 2>/dev/null
+}
+
+# The command Claude runs to record a confirmed list, paths single-quoted.
+trust_cmd() {
+    printf "'%s' '%s' '%s'" "$here/trust-approval-list.sh" "$1" "$data"
+}
+
+suggested="addOrEditJiraIssueWorklog, createJiraIssueLink, createConfluenceComment"
+offer=""
+proj_file="$proj/.claude/lean-atlassian.local.md"
+
+if [[ "$settings_tier" == global && -e "$proj/.git" && ! "$proj" -ef "$HOME" ]] \
+    && offer_once "copy:$proj"; then
+    offer+="Your Atlassian settings come from the global file ${settings_file}, and this git repository has none of its own. "
+    offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to copy it into this repository as ${proj_file}. "
+    offer+="Copy, don't move: leave the global file in place for other repositories. "
+    offer+="Before copying, check \`git check-ignore -q .claude/lean-atlassian.local.md\`; if the file would not be ignored, offer to add \`.claude/*.local.md\` to .git/info/exclude, because the people cache must never be committed. "
+    if ! has_approval_section "$settings_file"; then
+        offer+="The file has no \`## Auto-approved operations\` section; offer to add one to the copy, suggesting ${suggested} and letting the user trim or extend it. "
+    fi
+    offer+="A copied list is a project list, which the approval hook ignores until confirmed: after copying, show the user the exact operations listed and, only on an explicit yes, run: $(trust_cmd "$proj_file")"
+elif ! has_approval_section "$settings_file" && offer_once "add:$settings_file"; then
+    offer+="The settings file ${settings_file} has no \`## Auto-approved operations\` section, so every Atlassian executeRead/executeWrite call prompts. "
+    offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to add one, suggesting ${suggested} and letting the user trim or extend it. Write only the operations the user approves. "
+    if [[ "$settings_tier" == project ]]; then
+        offer+="This is a project file, so the hook ignores its list until confirmed: after writing it, show the user the exact operations listed and, only on an explicit yes, run: $(trust_cmd "$settings_file")"
+    fi
+elif [[ "$settings_tier" == project && -n "$(approval_list "$settings_file")" ]] \
+    && ! is_trusted "$settings_file" "$data" \
+    && offer_once "confirm:$settings_file:$(list_hash "$settings_file")"; then
+    ops="$(approval_list "$settings_file" | sort -u | paste -sd, - | sed 's/,/, /g')"
+    offer+="The project settings file ${settings_file} lists Auto-approved operations that the user has not confirmed, so the approval hook is ignoring them: ${ops}. "
+    offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to trust exactly this list, noting that a repository can commit this file. "
+    offer+="Only on an explicit yes, run: $(trust_cmd "$settings_file")"
+fi
+
+if [[ -n "$offer" ]]; then
+    ctx+="\n\n## One-time offer (lean-atlassian)\n\n$(json_escape "$offer")\n\n"
+    ctx+="If the user declines, do nothing more: this offer will not repeat."
+fi
 
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$ctx"
 exit 0

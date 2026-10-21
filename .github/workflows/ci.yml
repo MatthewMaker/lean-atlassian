@@ -24,10 +24,17 @@ jobs:
         run: |
           for f in plugins/*/hooks/*.sh tests/*.sh; do bash -n "$f"; done
 
-      # The hook is the only executable code here, and it fails quietly: a bad
-      # emission reaches every session of every install.
+      # The hooks are the only executable code here, and they fail quietly: a
+      # bad emission reaches every session of every install.
       - name: Cascade and emission tests
         run: tests/hook-cascade.sh
+
+      - name: One-time offer tests
+        run: tests/offers.sh
+
+      # This hook grants permission, so pin what it must never approve.
+      - name: Operation approval tests
+        run: tests/approve-operations.sh
 
   manifests:
     name: Manifests

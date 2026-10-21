@@ -108,3 +108,27 @@ _refreshed: 2026-07-05_
   skips the `lookupJiraAccountId` call after the first time.
 - **Prefix exceptions** — tokens that should never be treated as a Component
   prefix even if a Component of that name exists.
+
+## Auto-approving operations
+
+The v2 Atlassian MCP server runs most operations through generic
+`executeRead` / `executeWrite` tools, so a permission rule can't tell one write
+from another. List the operations you want approved without a prompt; the
+plugin's `PreToolUse` hook approves exactly these and nothing else:
+
+```markdown
+## Auto-approved operations
+
+- addOrEditJiraIssueWorklog
+- createJiraIssueLink
+- createConfluenceComment
+```
+
+- Read from whichever file wins the cascade above; a project list replaces
+  the global one rather than merging with it.
+- A **project** file's list is ignored until you confirm it, because a
+  repository could commit one. Claude offers once at session start; adding or
+  removing an operation needs a fresh confirmation. A global list needs none.
+- `executeDestructive` is never auto-approved, even if listed.
+- Claude edits this list only when you accept an offer or ask it to.
+- Operation names must match exactly what `discover` returns. Needs `jq`.

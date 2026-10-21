@@ -11,12 +11,14 @@
 
 ```bash
 tests/hook-cascade.sh
+tests/offers.sh
+tests/approve-operations.sh
 tests/manifest-invariants.sh
 shellcheck plugins/*/hooks/*.sh tests/*.sh
 claude plugin validate .
 ```
 
-- [ ] All four pass locally (CI runs them too)
+- [ ] All six pass locally (CI runs them too)
 
 ## If this changes behavior
 

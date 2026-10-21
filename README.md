@@ -16,6 +16,9 @@ window with noise.
 - **Targeted queries**: JQL/CQL patterns that fetch only what's needed
 - **cloudId injection**: A `SessionStart` hook loads your `cloud_id` from a
   settings file and injects it into the session, so it's never redundantly fetched
+- **Per-operation approval**: A `PreToolUse` hook auto-approves the
+  `executeRead`/`executeWrite` operations you list, so you don't have to allow
+  every Atlassian write to skip the prompt for a few
 - **Structured research**: An autonomous agent for multi-step Atlassian research
   that keeps raw intermediate results out of the main conversation
 
@@ -28,6 +31,7 @@ window with noise.
 | `/confluence` | Command | Search Confluence or fetch a page with digest output |
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
 | `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session |
+| `approve-listed-operations` | Hook | `PreToolUse` hook that auto-approves the `executeRead`/`executeWrite` operations listed in your settings file (project lists once you've confirmed them) |
 
 ## Prerequisites
 
@@ -144,18 +148,73 @@ invented. By default the matched prefixes are stripped from the summary; set
 `component_prefix_strip: false` to keep it verbatim. Component names are
 discovered from the project and cached locally so repeat creates skip the lookup.
 
+### Auto-approving `executeRead` / `executeWrite` operations
+
+The v2 Atlassian MCP server reaches most operations through generic runners —
+`executeRead`, `executeWrite`, `executeDestructive` — that take the operation
+name as an input. A permission rule can only name the runner, so allowing
+`executeWrite` allows every write in every Atlassian product.
+
+To approve specific operations instead, list them in your settings file under
+this heading:
+
+```markdown
+## Auto-approved operations
+
+- addOrEditJiraIssueWorklog
+- createJiraIssueLink
+- createConfluenceComment
+```
+
+The `PreToolUse` hook approves an `executeRead` or `executeWrite` call whose
+operation is listed (exact name match), and stays silent otherwise, so the
+normal prompt appears. Rules:
+
+- **Same cascade as everything else.** The list comes from whichever settings
+  file wins (project first, then global). A project file's list replaces the
+  global one; the two are not merged.
+- **A project list needs your confirmation.** A repository can commit
+  `.claude/lean-atlassian.local.md`, so the hook ignores a project file's list
+  until you've confirmed that exact set of operations. Adding or removing an
+  operation needs a fresh confirmation; reordering or editing comments
+  doesn't. A global list is yours and needs none.
+- **`executeDestructive` is never auto-approved**, whatever the list says.
+- **Deny and ask rules still win.** A hook approval skips the prompt but never
+  overrides a matching `deny` or `ask` rule in your Claude Code settings.
+- Requires `jq`. Without it the hook does nothing and every call prompts.
+
+Use the exact operation names that `discover` returns.
+
+### One-time offers
+
+At session start the plugin may ask Claude to make **one** offer, at a natural
+pause. Each is made once — declining means it doesn't come back:
+
+| When | Offer |
+|------|-------|
+| Only the global file exists and you're in a git repo | Copy it into this repo's `.claude/` (and make sure the copy is git-ignored). Once per repo. |
+| The settings file in use has no `## Auto-approved operations` section | Add one, starting from the three operations above. Once per file. |
+| A project file's list isn't confirmed | Confirm it. Once per file per set of operations. |
+
+Confirming runs `hooks/trust-approval-list.sh`, which records the list's
+fingerprint in the plugin's data directory (`${CLAUDE_PLUGIN_DATA}`, kept
+across plugin updates and removed on uninstall). Claude runs it only after you
+say yes to the exact list.
+
 ## Development
 
 No build step. Checks, runnable from anywhere in the repo:
 
 ```bash
 tests/hook-cascade.sh          # SessionStart hook: precedence, scalars, JSON escaping
+tests/offers.sh                # SessionStart hook: one-time offers fire once, under their condition
+tests/approve-operations.sh    # PreToolUse hook: only listed, project lists confirmed, never destructive
 tests/manifest-invariants.sh   # manifest structure; version declared exactly once
 shellcheck plugins/*/hooks/*.sh tests/*.sh
 claude plugin validate .
 ```
 
-CI runs all four on every pull request. See [CHANGELOG.md](CHANGELOG.md) for
+CI runs all six on every pull request. See [CHANGELOG.md](CHANGELOG.md) for
 version history.
 
 ## License
