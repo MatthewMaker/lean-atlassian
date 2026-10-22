@@ -28,7 +28,7 @@ description: >
   → This agent searches Confluence, fetches the top results in markdown
     format, summarizes each page, and returns a structured overview.
   </example>
-model: claude-sonnet-4-6
+model: sonnet
 color: blue
 tools:
   - mcp__claude_ai_Atlassian_MCP__getAccessibleAtlassianResources
@@ -50,13 +50,14 @@ raw data.
 ## Setup
 
 You need a `cloud_id` (and ideally `site_url`) for every Atlassian MCP call.
-Obtain it in this order:
+The plugin's `SubagentStart` hook injects them, with the user's `account_id`
+and `project_key` when configured, under **Atlassian settings
+(lean-atlassian plugin)** at the start of your context. Use those values and
+don't look them up again.
 
-1. If the dispatching context already gave you a `cloud_id`, use it.
-2. Otherwise read `.claude/lean-atlassian.local.md` (in the project root) and
-   parse its YAML frontmatter for `cloud_id` / `site_url`.
-3. If neither is available, call `getAccessibleAtlassianResources` once to
-   retrieve the `cloud_id`.
+If that section is missing (no settings file is configured) but the
+dispatching prompt gave you a `cloud_id`, use it. Otherwise call
+`getAccessibleAtlassianResources` once.
 
 ## Tools
 

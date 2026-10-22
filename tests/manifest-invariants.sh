@@ -86,6 +86,7 @@ fi
 while IFS= read -r hookfile; do
     while IFS= read -r cmd; do
         path="${cmd/\$\{CLAUDE_PLUGIN_ROOT\}/$(dirname "$(dirname "$hookfile")")}"
+        path="${path%% *}"   # drop arguments
         [[ -f "$path" ]] || { fail "hook command missing: $cmd"; continue; }
         [[ -x "$path" ]] || fail "hook command not executable: $path"
     done < <(jq -r '.. | objects | select(.type=="command") | .command' "$hookfile")

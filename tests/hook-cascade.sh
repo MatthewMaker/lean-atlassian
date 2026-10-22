@@ -172,5 +172,22 @@ else
     echo "FAIL [project .claude == config dir]: got:"; printf '%s\n' "$ctx"; failures=$((failures + 1))
 fi
 
+# 13. As the SubagentStart hook it emits that event, carries the settings, and
+#     leaves out the skill pointer: the researcher agent has no Skill tool.
+write_settings "$SB/cfg/lean-atlassian.local.md" SUBAGENT
+out="$(CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" "$HOOK" SubagentStart)"
+assert_json "subagent emission" "$out" && {
+    ctx="$(jq -r '.hookSpecificOutput.additionalContext' <<<"$out")"
+    if [[ "$(jq -r '.hookSpecificOutput.hookEventName' <<<"$out")" != SubagentStart ]]; then
+        echo "FAIL [subagent event name]: got $out"; failures=$((failures + 1))
+    elif ! grep -qF -- '- cloud_id: SUBAGENT' <<<"$ctx"; then
+        echo "FAIL [subagent settings]: missing cloud_id in:"; printf '%s\n' "$ctx"; failures=$((failures + 1))
+    elif grep -qF 'atlassian-mediation skill' <<<"$ctx"; then
+        echo "FAIL [subagent skill pointer]: should be absent:"; printf '%s\n' "$ctx"; failures=$((failures + 1))
+    else
+        echo "ok   [SubagentStart: settings, no skill pointer]"
+    fi
+}
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all hook cascade checks passed"
