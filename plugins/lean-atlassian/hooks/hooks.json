@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/approve-listed-operations.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/approve-listed-operations.sh\"",
             "timeout": 5
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh SubagentStart",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh\" SubagentStart",
             "timeout": 5
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh\"",
             "timeout": 5
           }
         ]

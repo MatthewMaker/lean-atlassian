@@ -82,16 +82,28 @@ if [[ -f CHANGELOG.md ]]; then
     ok "newest changelog release matches the declared version"
 fi
 
-# 7. Declared hook commands must exist and be executable.
+# 7. Declared hook commands must exist and be executable, and quote the script
+#    path so a plugin root containing spaces still runs. Each command is also
+#    run through sh from a copy of the plugin under a path with a space.
+SPACED="$(mktemp -d)/plugin root"
+trap 'rm -rf "$(dirname "$SPACED")"' EXIT
 while IFS= read -r hookfile; do
+    root="$(dirname "$(dirname "$hookfile")")"
+    mkdir -p "$SPACED" && cp -R "$root/." "$SPACED/"
     while IFS= read -r cmd; do
-        path="${cmd/\$\{CLAUDE_PLUGIN_ROOT\}/$(dirname "$(dirname "$hookfile")")}"
-        path="${path%% *}"   # drop arguments
-        [[ -f "$path" ]] || { fail "hook command missing: $cmd"; continue; }
-        [[ -x "$path" ]] || fail "hook command not executable: $path"
+        # shellcheck disable=SC2016  # the placeholder is literal, not expansion
+        if [[ "$cmd" != '"${CLAUDE_PLUGIN_ROOT}/'* ]]; then
+            fail "hook command doesn't quote its path: $cmd"; continue
+        fi
+        rel="${cmd#\"\$\{CLAUDE_PLUGIN_ROOT\}/}"; rel="${rel%%\"*}"
+        [[ -f "$root/$rel" ]] || { fail "hook command missing: $cmd"; continue; }
+        [[ -x "$root/$rel" ]] || { fail "hook command not executable: $root/$rel"; continue; }
+        out="$(CLAUDE_PLUGIN_ROOT="$SPACED" CLAUDE_CONFIG_DIR="$SPACED/none" CLAUDE_PROJECT_DIR="$SPACED/none" \
+            sh -c "$cmd" </dev/null 2>/dev/null)"
+        jq -e . >/dev/null 2>&1 <<<"$out" || fail "hook command didn't run from a path with a space: $cmd"
     done < <(jq -r '.. | objects | select(.type=="command") | .command' "$hookfile")
 done < <(git ls-files '*/hooks/hooks.json')
-ok "hook commands exist and are executable"
+ok "hook commands exist, are executable, and run from a path with a space"
 
 # 8. Every skill directory carries a SKILL.md.
 while IFS= read -r d; do
