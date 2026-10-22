@@ -5,7 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 A single-plugin Claude Code marketplace. The only executable code is bash: two
-hooks (`SessionStart`, `PreToolUse`) and the `lib.sh` they share. Everything
+hook scripts (`load-atlassian-config.sh` for `SessionStart` and `SubagentStart`,
+`approve-listed-operations.sh` for `PreToolUse`) and the `lib.sh` they share.
+Everything
 else is Markdown that instructs a future Claude instance. There is no build
 step and no package manager. Checks, all runnable from anywhere in the repo:
 
@@ -53,7 +55,7 @@ plugins/lean-atlassian/
   .claude-plugin/plugin.json             # plugin manifest
   hooks/hooks.json
   hooks/lib.sh                           # cascade + approval-list helpers, sourced
-  hooks/load-atlassian-config.sh         # SessionStart: settings + one-time offers
+  hooks/load-atlassian-config.sh         # SessionStart: settings + offers; SubagentStart: settings
   hooks/approve-listed-operations.sh     # PreToolUse: per-operation approval
   commands/{jira,confluence}.md
   skills/atlassian-mediation/SKILL.md    # reads; references/jira-writes.md for writes
@@ -77,7 +79,9 @@ explicitness:
   never call `getAccessibleAtlassianResources`, `atlassianUserInfo`, or
   `listJiraProjects`. It also names the skill and repeats its three most
   important read rules, because the skill's description can be dropped from
-  the skill listing when many skills are installed.
+  the skill listing when many skills are installed. Subagents don't receive
+  that context, so `hooks.json` also runs the script as a `SubagentStart` hook
+  (matcher `atlassian-researcher$`), which injects the settings alone.
 - **`atlassian-mediation` skill** is the source of truth for behavior: digest
   formats, JQL/CQL rules, context budgets, prefix→Component mapping, and MCP
   field placement.

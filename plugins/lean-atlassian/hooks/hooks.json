@@ -1,5 +1,5 @@
 {
-  "description": "Injects the user's Atlassian cloud_id/site_url into each session so /jira, /confluence, and the atlassian-mediation skill never need to look them up, and auto-approves the executeRead/executeWrite operations the user lists in their settings file.",
+  "description": "Injects the user's Atlassian cloud_id/site_url into each session (and into the atlassian-researcher subagent) so /jira, /confluence, and the atlassian-mediation skill never need to look them up, and auto-approves the executeRead/executeWrite operations the user lists in their settings file.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,18 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/approve-listed-operations.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "atlassian-researcher$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/load-atlassian-config.sh SubagentStart",
             "timeout": 5
           }
         ]

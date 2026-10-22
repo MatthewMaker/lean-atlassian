@@ -95,5 +95,18 @@ EXAMPLE="$(cd "$HOOKS/../../.." && pwd)/.claude/lean-atlassian.local.md.example"
 sed 's/your-cloud-id-here/real-id/' "$EXAMPLE" > "$GLOBAL_FILE"
 expect_offer add "example file (fenced sample only) -> add"
 
+# 9. A subagent never gets an offer, and doesn't spend one: the next main
+#    session still makes it.
+rm -rf "$SB/data"; mkdir -p "$SB/data" "$SB/proj/.git"
+write_settings "$GLOBAL_FILE"
+out="$(CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="$SB/data" "$HOOK" SubagentStart)"
+if jq -e . >/dev/null 2>&1 <<<"$out" \
+    && ! jq -r '.hookSpecificOutput.additionalContext' <<<"$out" | grep -qF 'One-time offer'; then
+    echo "ok   [SubagentStart -> no offer]"
+else
+    echo "FAIL [SubagentStart -> no offer]: got $out"; failures=$((failures + 1))
+fi
+expect_offer copy "offer not spent by a subagent -> copy"
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all one-time offer checks passed"

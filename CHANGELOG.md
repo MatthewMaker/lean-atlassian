@@ -10,6 +10,12 @@ carried the version bump in `plugin.json`.
 
 ### Added
 
+- `SubagentStart` hook for the `atlassian-researcher` agent: the same
+  `load-atlassian-config.sh`, run with `SubagentStart` as its argument, injects
+  the settings into the agent's context. Before, the agent read only
+  `.claude/lean-atlassian.local.md` and fell back to
+  `getAccessibleAtlassianResources` with a global-only setup. A subagent gets
+  no skill pointer and never makes or spends a one-time offer.
 - CI `release` job: after checks pass on `main`, tags `v<version>` from
   `plugin.json` and publishes a GitHub Release with that version's CHANGELOG
   section, unless the tag already exists.
@@ -34,6 +40,9 @@ carried the version bump in `plugin.json`.
   after the numbered steps instead of splitting them.
 - The skill's "save your settings" fallback checks the file is git-ignored
   before writing it, as the one-time copy offer already did.
+
+- `atlassian-researcher` uses the `sonnet` model alias instead of the pinned
+  `claude-sonnet-4-6`.
 
 ### Removed
 

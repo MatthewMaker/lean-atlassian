@@ -23,6 +23,13 @@
 #
 # Emitting `{}` (no additionalContext) when nothing is configured keeps the
 # hook silent; the commands/skill then fall back to a one-time MCP lookup.
+#
+# The same script also runs as the SubagentStart hook for the
+# atlassian-researcher agent, with the event name as its only argument:
+# subagents don't receive the main session's injected context. A subagent gets
+# the settings alone — no skill pointer (it has no Skill tool) and no offers.
+
+event="${1:-SessionStart}"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
@@ -87,6 +94,11 @@ account_id="$(json_escape "$account_id")"
 project_key="$(json_escape "$project_key")"
 src="$(json_escape "$src")"
 
+# Print the hook's JSON for $event with CTX as additionalContext.
+emit() {
+    printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$event" "$1"
+}
+
 # additionalContext is a single JSON string; the literal \n sequences below
 # render as newlines in the injected context.
 ctx="## Atlassian settings (lean-atlassian plugin)\n\n"
@@ -99,8 +111,16 @@ ctx+="- site_url: ${site_url}\n"
 # The skill's description can be dropped from the skill listing when many
 # skills are installed, so name it here, with the rules that matter most if it
 # never loads.
-ctx+="\nBefore any Atlassian MCP call, load the lean-atlassian:atlassian-mediation skill. Until it is loaded: reply with digests, never raw JSON; pass fields and maxResults to searchJiraIssuesUsingJql; pass content_format: markdown to getConfluenceContent.\n"
+if [[ "$event" == SessionStart ]]; then
+    ctx+="\nBefore any Atlassian MCP call, load the lean-atlassian:atlassian-mediation skill. Until it is loaded: reply with digests, never raw JSON; pass fields and maxResults to searchJiraIssuesUsingJql; pass content_format: markdown to getConfluenceContent.\n"
+fi
 ctx+="\n(loaded from ${src})"
+
+# Offers are for the user's own session; a subagent never makes one.
+if [[ "$event" != SessionStart ]]; then
+    emit "$ctx"
+    exit 0
+fi
 
 # --- One-time offers ---------------------------------------------------------
 #
@@ -149,5 +169,5 @@ if [[ -n "$offer" ]]; then
     ctx+="If the user declines, do nothing more: this offer will not repeat."
 fi
 
-printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$ctx"
+emit "$ctx"
 exit 0

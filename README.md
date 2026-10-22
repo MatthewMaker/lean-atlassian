@@ -30,7 +30,7 @@ window with noise.
 | `/jira` | Command | Search Jira, look up an issue, or create one with digest output |
 | `/confluence` | Command | Search Confluence or fetch a page with digest output |
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
-| `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session |
+| `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session; also runs as a `SubagentStart` hook so `atlassian-researcher` gets the same settings |
 | `approve-listed-operations` | Hook | `PreToolUse` hook that auto-approves the `executeRead`/`executeWrite` operations listed in your settings file |
 
 ## Prerequisites
