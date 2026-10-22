@@ -14,6 +14,8 @@ set -uo pipefail
 HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/lean-atlassian/hooks"
 HOOK="$HOOKS/load-atlassian-config.sh"
 [[ -x "$HOOK" ]] || { echo "FAIL: hook not executable at $HOOK"; exit 1; }
+# shellcheck source=../plugins/lean-atlassian/hooks/lib.sh
+source "$HOOKS/lib.sh"
 
 SB="$(mktemp -d)"
 trap 'rm -rf "$SB"' EXIT
@@ -26,7 +28,7 @@ failures=0
 # Run the hook and print the offer section of its context (empty if none).
 offer() {
     local out
-    out="$(CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="${DATA-$SB/data}" "$HOOK")"
+    out="$(CLAUDE_PROJECT_DIR="${PROJ-$SB/proj}" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="${DATA-$SB/data}" "$HOOK")"
     if ! jq -e . >/dev/null 2>&1 <<<"$out"; then
         echo "INVALID-JSON: $out"; return
     fi
@@ -112,31 +114,23 @@ expect_offer copy "offer not spent by a subagent -> copy"
 #     repo whose main checkout was already offered stays silent, and so does
 #     the main checkout after a worktree was offered first.
 if command -v git >/dev/null 2>&1; then
-    rm -rf "$SB/data" "$SB/proj/.git" "$SB/repo" "$SB/wt"; mkdir -p "$SB/data"
+    rm -rf "$SB/data"; mkdir -p "$SB/data"
     write_settings "$GLOBAL_FILE" createJiraIssueLink
     git init -q "$SB/repo" && git -C "$SB/repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
     git -C "$SB/repo" worktree add -q "$SB/wt" 2>/dev/null
-    # Assert the offer a session in DIR gets is of KIND (copy|none).
-    expect_offer_in() {
-        local dir="$1" want="$2" label="$3" text got=none
-        text="$(CLAUDE_PROJECT_DIR="$dir" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="$SB/data" "$HOOK" \
-            | jq -r '.hookSpecificOutput.additionalContext // ""' | sed -n '/## One-time offer/,$p')"
-        [[ "$text" == *"copy it into this"* ]] && got=copy
-        if [[ -n "$text" && "$got" == none ]]; then got=other; fi
-        if [[ "$got" == "$want" ]]; then echo "ok   [$label]"
-        else echo "FAIL [$label]: expected $want, got $got"; failures=$((failures + 1)); fi
-    }
-    expect_offer_in "$SB/repo" copy "main checkout -> copy"
-    expect_offer_in "$SB/wt" none "worktree of an offered repo -> silent"
+    PROJ="$SB/repo" expect_offer copy "main checkout -> copy"
+    PROJ="$SB/wt" expect_offer none "worktree of an offered repo -> silent"
     rm -rf "$SB/data"; mkdir -p "$SB/data"
-    expect_offer_in "$SB/wt" copy "worktree first -> copy"
-    expect_offer_in "$SB/repo" none "then main checkout -> silent"
+    PROJ="$SB/wt" expect_offer copy "worktree first -> copy"
+    PROJ="$SB/repo" expect_offer none "then main checkout -> silent"
 
-    # 11. A marker under the old per-path key still counts as offered.
+    # 11. A marker under the old per-path key still counts as offered, and
+    #     carries over to the repository: its other worktrees stay silent.
     rm -rf "$SB/data"; mkdir -p "$SB/data/offers"
     key="copy:$SB/repo"
-    printf '%s\n' "$key" > "$SB/data/offers/$(printf '%s' "$key" | { shasum -a 256 2>/dev/null || sha256sum; } | cut -d' ' -f1)"
-    expect_offer_in "$SB/repo" none "legacy per-path marker honoured"
+    printf '%s\n' "$key" > "$SB/data/offers/$(printf '%s' "$key" | sha256)"
+    PROJ="$SB/repo" expect_offer none "legacy per-path marker honoured"
+    PROJ="$SB/wt" expect_offer none "legacy marker carried over to worktree"
 else
     echo "skip [per-repo copy offer]: git not installed"
 fi
