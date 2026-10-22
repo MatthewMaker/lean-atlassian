@@ -36,11 +36,31 @@ fi
 file="$settings_file"
 src="$settings_src"
 
-# Read one YAML frontmatter field: strip the key, surrounding quotes, and
-# trailing whitespace. Returns empty (never errors) when the key is absent.
+# Read one YAML frontmatter field. Only the block between the opening and
+# closing `---` is searched, so field-like lines in the body (the .example
+# file's sample block) never stand in for a missing field. A quoted value runs
+# to its last matching quote; an unquoted one ends at ` #`. Either way a
+# trailing comment is dropped. Returns empty (never errors) when the key is
+# absent or the file has no frontmatter.
 read_field() {
-    grep -m1 "^$1:" "$file" 2>/dev/null \
-        | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]+$//; s/^[\"']//; s/[\"']$//"
+    awk -v key="$1" '
+        NR == 1 { if ($0 !~ /^---[[:space:]]*$/) exit; next }
+        /^---[[:space:]]*$/ { exit }
+        index($0, key ":") == 1 {
+            v = substr($0, length(key) + 2)
+            sub(/^[[:space:]]+/, "", v)
+            q = substr(v, 1, 1)
+            if (q == "\"" || q == "\047") {
+                v = substr(v, 2)
+                sub(q "[[:space:]]*(#.*)?$", "", v)
+            } else {
+                sub(/[[:space:]]+#.*$/, "", v)
+                sub(/[[:space:]]+$/, "", v)
+            }
+            print v
+            exit
+        }
+    ' "$file" 2>/dev/null
 }
 
 cloud_id="$(read_field cloud_id)"

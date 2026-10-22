@@ -20,6 +20,21 @@ carried the version bump in `plugin.json`.
   heading to equal the `plugin.json` version, not just to appear somewhere.
 - CI no longer cancels in-flight runs on `main`, only on pull requests.
 
+### Fixed
+
+- A settings file copied from the `.example`, as the README's setup describes,
+  auto-approved `addOrEditJiraIssueWorklog`, `createJiraIssueLink` and
+  `createConfluenceComment`: the approval list was read from the example's
+  fenced sample. Headings and bullets inside fenced code no longer count, and
+  such a file now gets the one-time offer to add a real list.
+- The `SessionStart` hook read frontmatter fields from anywhere in the file, so
+  the example's sample `account_id`/`project_key` were injected when the
+  frontmatter lacked them. It now reads only the frontmatter block; a file
+  without one is treated as unconfigured.
+- Trailing YAML comments were kept as part of a value, so the frontmatter
+  template in SKILL.md (`account_id: ""   # optional …`) injected the comment
+  as the accountId. Comments are now dropped.
+
 ## [0.8.0] - 2026-10-21
 
 The plugin now targets the Atlassian MCP v2 server, which breaks installs still

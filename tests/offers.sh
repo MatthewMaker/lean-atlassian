@@ -108,5 +108,12 @@ mkdir -p "$SB/data"
 write_settings "$GLOBAL_FILE" createJiraIssueLink
 expect_offer none "not a git repo, global has list -> silent"
 
+# 10. A file whose only `## Auto-approved operations` is a fenced sample (the
+#     shipped example) has no list, so it gets the add offer.
+rm -rf "$SB/data"; mkdir -p "$SB/data"
+EXAMPLE="$(cd "$HOOKS/../../.." && pwd)/.claude/lean-atlassian.local.md.example"
+sed 's/your-cloud-id-here/real-id/' "$EXAMPLE" > "$GLOBAL_FILE"
+expect_offer add "example file (fenced sample only) -> add"
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all one-time offer checks passed"

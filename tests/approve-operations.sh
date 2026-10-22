@@ -140,7 +140,27 @@ if [[ "$(jq -r '.hookSpecificOutput.permissionDecision // empty' <<<"$out")" == 
     echo "ok   [project .claude == config dir -> global]"
 else echo "FAIL [project .claude == config dir]: got $out"; failures=$((failures + 1)); fi
 
-# 13. Garbage on stdin is not an error.
+# 13. Fenced code is documentation, not a list. A heading or bullets inside a
+#     fence grant nothing, and a fence inside the real section hides its bullets.
+rm -f "$SB/cfg"/*.md "$SB/home/.claude"
+# shellcheck disable=SC2016  # literal Markdown fences
+printf -- '---\ncloud_id: "id"\n---\n\n```markdown\n## Auto-approved operations\n\n- createJiraIssueLink\n```\n\n- notAnOperation\n' \
+    > "$SB/cfg/lean-atlassian.local.md"
+expect pass "fenced heading grants nothing" "${RUNNER}__executeWrite" createJiraIssueLink
+# shellcheck disable=SC2016  # literal Markdown fences
+write_list "$SB/cfg/lean-atlassian.local.md" '- addOrEditJiraIssueWorklog' '~~~' '- createJiraIssueLink' '~~~'
+expect allow "bullet outside fence still listed" "${RUNNER}__executeWrite" addOrEditJiraIssueWorklog
+expect pass "bullet inside fence in the section" "${RUNNER}__executeWrite" createJiraIssueLink
+
+# 14. The shipped example, copied and filled in as the README says, grants
+#     nothing: its sample list is fenced documentation.
+EXAMPLE="$(cd "$HOOKS/../../.." && pwd)/.claude/lean-atlassian.local.md.example"
+sed 's/your-cloud-id-here/real-id/' "$EXAMPLE" > "$SB/cfg/lean-atlassian.local.md"
+for op in addOrEditJiraIssueWorklog createJiraIssueLink createConfluenceComment; do
+    expect pass "example file: $op not approved" "${RUNNER}__executeWrite" "$op"
+done
+
+# 15. Garbage on stdin is not an error.
 out="$(printf 'not json' | CLAUDE_CONFIG_DIR="$SB/cfg" "$HOOK")"
 if [[ "$(printf '%s' "$out" | jq -c . 2>/dev/null)" == "{}" ]]; then
     echo "ok   [unparseable input -> {}]"

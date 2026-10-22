@@ -46,15 +46,25 @@ resolve_settings() {
     return 1
 }
 
+# Both functions below skip fenced code blocks (``` or ~~~): a heading or bullet
+# inside a fence is documentation, such as the sample list in the .example
+# file, and must never grant anything.
+
 # True when FILE has an `## Auto-approved operations` heading, even an empty one.
 has_approval_section() {
-    grep -qE '^## Auto-approved operations[[:space:]]*$' "$1" 2>/dev/null
+    awk '
+        /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+        !fence && /^## Auto-approved operations[[:space:]]*$/ { found = 1; exit }
+        END { exit !found }
+    ' "$1" 2>/dev/null
 }
 
 # Print the operation names listed under `## Auto-approved operations` in FILE:
 # the first word of each `- ` bullet, backticks stripped, up to the next `## `.
 approval_list() {
     awk '
+        /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+        fence { next }
         /^## / { in_list = ($0 ~ /^## Auto-approved operations[[:space:]]*$/); next }
         in_list && /^[[:space:]]*- / {
             sub(/^[[:space:]]*- [[:space:]]*/, "")
