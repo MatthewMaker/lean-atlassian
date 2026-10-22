@@ -17,8 +17,8 @@ What it does store, in an uncommitted `lean-atlassian.local.md`:
 | People cache | Colleagues' names paired with their Jira accountIds |
 | Auto-approved operations | Atlassian operations the `PreToolUse` hook may run without a prompt |
 
-The plugin's data directory (`${CLAUDE_PLUGIN_DATA}`) holds the fingerprints of
-project lists you've confirmed, and markers for offers already made.
+The plugin's data directory (`${CLAUDE_PLUGIN_DATA}`) holds markers for offers
+already made.
 
 None of these are secrets in the sense that a token is — they don't grant
 access on their own. They do identify your organisation and your colleagues,
@@ -51,20 +51,21 @@ Either way, describe the class of problem and how to reproduce it, and please
 don't open a public issue first.
 
 The two hooks are the parts worth scrutinising — they are the only executable
-code here (with `trust-approval-list.sh`, which Claude runs on your say-so),
-and they run automatically in every session of every install. Each reads a
+code here, and they run automatically in every session of every install. Each reads a
 settings file and prints JSON; neither evaluates the file's contents. A
 finding that either can be made to do anything else is worth reporting.
 
 The `PreToolUse` hook is the one that grants anything: it approves Atlassian
 `executeRead`/`executeWrite` calls whose operation is listed in the resolved
-settings file — for a project file, only once you've confirmed that exact set
-of operations. A way to make it approve an unlisted operation, an
-`executeDestructive` call, or an unconfirmed project list is a vulnerability.
+settings file. A way to make it approve an unlisted operation, an operation
+that appears only inside fenced code, or an `executeDestructive` call is a
+vulnerability.
 
-The confirmation is a fingerprint Claude records after asking you. It guards
-against a list a repository committed without your noticing; it is not a
-barrier against Claude itself, which acts with your permissions either way.
+A project file's list is honoured like a global one, with no separate
+confirmation. A repository that commits `.claude/lean-atlassian.local.md`
+therefore grants its listed operations to anyone who opens it with this
+plugin installed; `.gitignore` covering `.claude/*.local.md` in your own
+repositories keeps that from happening by accident.
 
 No formal support window is offered. Fixes land on `main` and ship in the next
 version bump.

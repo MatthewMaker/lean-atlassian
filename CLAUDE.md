@@ -5,16 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 A single-plugin Claude Code marketplace. The only executable code is bash: two
-hooks (`SessionStart`, `PreToolUse`), the `lib.sh` they share, and
-`trust-approval-list.sh`, which Claude runs when the user confirms a list.
-Everything else is Markdown that instructs a future Claude instance. There is
-no build step and no package manager. Checks, all runnable from anywhere in
-the repo:
+hooks (`SessionStart`, `PreToolUse`) and the `lib.sh` they share. Everything
+else is Markdown that instructs a future Claude instance. There is no build
+step and no package manager. Checks, all runnable from anywhere in the repo:
 
 ```bash
 tests/hook-cascade.sh          # SessionStart: precedence, optional scalars, JSON escaping
 tests/offers.sh                # SessionStart: one-time offers fire once, under their condition
-tests/approve-operations.sh    # PreToolUse: only listed, project lists confirmed, never destructive
+tests/approve-operations.sh    # PreToolUse: only listed, never fenced, never destructive
 tests/manifest-invariants.sh   # manifest structure; version declared exactly once
 shellcheck plugins/*/hooks/*.sh tests/*.sh   # .shellcheckrc makes it follow lib.sh
 claude plugin validate .       # schema; runs unauthenticated
@@ -33,10 +31,13 @@ without announcing itself. That's what the hook tests exist to pin.
 
 `approve-listed-operations.sh` is the only code that grants anything, so its
 failure direction matters: every doubt resolves to `{}` (the normal prompt),
-never to an allow. It honours a project file's `## Auto-approved operations`
-list only once the user has confirmed that exact set (a repo can commit the
-file), and never approves `executeDestructive`. Keep both properties when
-changing it.
+never to an allow. It never approves `executeDestructive`, and never reads a
+list from fenced code (the `.example` file's sample list is fenced). Keep both
+properties when changing it.
+
+The threat it guards against is the user's own earlier settings files, such as
+one copied from an older `.example`, not a hostile repository: project and
+global lists are honoured alike, with no confirmation step.
 
 The settings cascade lives once, in `lib.sh::resolve_settings`. Both hooks
 source it; don't re-inline it.
@@ -54,7 +55,6 @@ plugins/lean-atlassian/
   hooks/lib.sh                           # cascade + approval-list helpers, sourced
   hooks/load-atlassian-config.sh         # SessionStart: settings + one-time offers
   hooks/approve-listed-operations.sh     # PreToolUse: per-operation approval
-  hooks/trust-approval-list.sh           # records a confirmed project list
   commands/{jira,confluence}.md
   skills/atlassian-mediation/SKILL.md    # + references/*.md
   agents/atlassian-researcher.md
@@ -106,8 +106,7 @@ self-maintained cache:
 - **`## Auto-approved operations`** — a permission grant, read by the
   `PreToolUse` hook from whichever file the cascade resolves. Claude writes it
   only when the user accepts an offer or asks outright, and carries it over
-  untouched when rewriting the caches (SKILL.md). Project lists need a
-  confirmation recorded in `${CLAUDE_PLUGIN_DATA}/trusted-lists`.
+  untouched when rewriting the caches (SKILL.md).
 
 Preserve that split when adding settings: scalars in frontmatter, anything
 list-shaped or project-specific in the body.

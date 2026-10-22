@@ -126,9 +126,8 @@ plugin's `PreToolUse` hook approves exactly these and nothing else:
 
 - Read from whichever file wins the cascade above; a project list replaces
   the global one rather than merging with it.
-- A **project** file's list is ignored until you confirm it, because a
-  repository could commit one. Claude offers once at session start; adding or
-  removing an operation needs a fresh confirmation. A global list needs none.
+- A list inside fenced code, like the sample above, doesn't count: write the
+  heading and bullets outside any fence.
 - `executeDestructive` is never auto-approved, even if listed.
 - Claude edits this list only when you accept an offer or ask it to.
 - Operation names must match exactly what `discover` returns. Needs `jq`.

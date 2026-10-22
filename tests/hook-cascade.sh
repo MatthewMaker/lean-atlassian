@@ -152,5 +152,16 @@ fi
 printf -- 'cloud_id: "NO-FRONTMATTER"\n' > "$SB/cfg/lean-atlassian.local.md"
 assert_silent "no frontmatter -> {}"
 
+# 11. A project dir whose .claude IS the config dir (a session in $HOME) reads
+#     the file as global, not as a project file.
+write_settings "$SB/cfg/lean-atlassian.local.md" HOME-SESSION
+mkdir -p "$SB/home"; ln -s "$SB/cfg" "$SB/home/.claude"
+ctx="$(CLAUDE_PROJECT_DIR="$SB/home" CLAUDE_CONFIG_DIR="$SB/cfg" "$HOOK" | jq -r '.hookSpecificOutput.additionalContext')"
+if grep -qF -- "(loaded from $SB/cfg/lean-atlassian.local.md)" <<<"$ctx"; then
+    echo "ok   [project .claude == config dir -> global]"
+else
+    echo "FAIL [project .claude == config dir]: got:"; printf '%s\n' "$ctx"; failures=$((failures + 1))
+fi
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all hook cascade checks passed"

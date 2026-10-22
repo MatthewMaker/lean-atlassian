@@ -134,18 +134,14 @@ treated as a Component prefix even if a Component of that name exists.
 
 The settings file may hold a `## Auto-approved operations` section. The
 plugin's `PreToolUse` hook auto-approves `executeRead`/`executeWrite` calls for
-the operations listed there — for a project file, only once the user has
-confirmed that exact set of operations.
+the operations listed there.
 
 - **Write it only on the user's say-so**: when they accept a one-time offer
   injected at session start, or ask outright. Never on your own initiative,
   and never as a side effect of refreshing the caches — carry the section over
   byte-for-byte whenever you rewrite the file.
-- **Confirming a project list** means running the `trust-approval-list.sh`
-  command the session-start offer gives you. Run it only after the user has
-  answered an explicit yes (AskUserQuestion) to the exact operations listed.
-  After you change a project list at the user's request, it needs confirming
-  again; ask before running the command.
+- Write the heading and bullets as plain Markdown, never inside a code fence:
+  the hook ignores fenced lines.
 - Never list anything the user hasn't named or approved, and never offer to
   list a destructive operation — the hook won't approve one anyway.
 
