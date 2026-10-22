@@ -138,18 +138,22 @@ fi
 data="${CLAUDE_PLUGIN_DATA:-}"
 proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 
-# True (and recorded) the first time KEY is offered; false every time after.
+# True (and recorded under KEY) the first time KEY is offered; false every
+# time after. Any further arguments are older keys for the same offer: a
+# marker under one of them also counts as offered, and is recorded under KEY
+# too, so the next check finds it there.
 offer_once() {
-    local marker
+    local key marker first=""
     [[ -n "$data" ]] || return 1
-    marker="$data/offers/$(printf '%s' "$1" | sha256)"
-    [[ -e "$marker" ]] && return 1
-    mkdir -p "$data/offers" 2>/dev/null && printf '%s\n' "$1" > "$marker" 2>/dev/null
-}
-
-# True when KEY was already offered. Checks only; records nothing.
-offered() {
-    [[ -n "$data" && -e "$data/offers/$(printf '%s' "$1" | sha256)" ]]
+    for key; do
+        marker="$data/offers/$(printf '%s' "$key" | sha256)"
+        first="${first:-$marker}"
+        if [[ -e "$marker" ]]; then
+            [[ "$marker" == "$first" ]] || printf '%s\n' "$1" > "$first" 2>/dev/null
+            return 1
+        fi
+    done
+    mkdir -p "$data/offers" 2>/dev/null && printf '%s\n' "$1" > "$first" 2>/dev/null
 }
 
 # The repository the session is in, as its git common directory: every
@@ -167,8 +171,7 @@ offer=""
 proj_file="$proj/.claude/lean-atlassian.local.md"
 
 if [[ "$settings_tier" == global && -e "$proj/.git" && ! "$proj" -ef "$HOME" ]] \
-    && ! offered "copy:$proj" \
-    && offer_once "copy:$(repo_id)"; then
+    && offer_once "copy:$(repo_id)" "copy:$proj"; then
     offer+="Your Atlassian settings come from the global file ${settings_file}, and this git repository has none of its own. "
     offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to copy it into this repository as ${proj_file}. "
     offer+="Copy, don't move: leave the global file in place for other repositories. "

@@ -8,6 +8,13 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Fixed
+
+- A repository whose copy offer was recorded before 0.9.0, under the old
+  per-checkout marker, no longer gets the offer again in each of its other
+  worktrees: the old marker is carried over to the repository the first time
+  it's found.
+
 ## [0.9.0] - 2026-10-21
 
 Two changes can affect an existing install on upgrade. A project file's
