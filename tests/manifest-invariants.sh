@@ -91,6 +91,7 @@ while IFS= read -r hookfile; do
     root="$(dirname "$(dirname "$hookfile")")"
     mkdir -p "$SPACED" && cp -R "$root/." "$SPACED/"
     while IFS= read -r cmd; do
+        # shellcheck disable=SC2016  # the placeholder is literal, not expansion
         if [[ "$cmd" != '"${CLAUDE_PLUGIN_ROOT}/'* ]]; then
             fail "hook command doesn't quote its path: $cmd"; continue
         fi
