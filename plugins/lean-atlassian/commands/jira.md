@@ -47,28 +47,6 @@ Perform a focused Jira lookup or search and return a compact digest.
      - "recent PROJ issues" → `project = PROJ AND updated >= -7d ORDER BY updated DESC`
      - "login bug" → `text ~ "login bug" AND status != Done ORDER BY updated DESC`
 
-### Creating an issue
-
-Delegate to the atlassian-mediation skill's **Creating Issues** workflow — don't
-reinvent it. In brief:
-
-1. **Project & type**: default `projectKey` to the injected `project_key`; if none
-   is set and the request names no project, ask before creating. Default the
-   issue type to `Task` unless the request names one (bug/story/epic/…).
-2. **Prefixes → Components**: parse leading `Token: ` prefixes from the summary
-   and match them case-insensitively against the project's Components (from the
-   settings-file Component cache; fetch via `executeRead` →
-   `listJiraProjectComponents` and refresh the cache on a miss). Add every match to `components`; leave unmatched
-   prefixes in the summary. Strip matched prefixes from the summary unless
-   `component_prefix_strip: false`.
-3. **Assignee**: resolve any named assignee via the People cache /
-   `executeRead` → `lookupJiraAccountId`; use the injected `account_id` for
-   "assign to me".
-4. **Create** with `createJiraIssue`, placing each field where the skill's
-   **Field placement** table says, then confirm with the digest below. Since
-   `/jira create …` is explicit authorization, create directly — but if the
-   project is unknown, ask first rather than guessing.
-
 3. **Fetch results**:
    - For searches: pass `maxResults` (at most 15) and the digest `fields`. Do
      not fetch full issue bodies.
@@ -112,6 +90,20 @@ reinvent it. In brief:
    - For lists: "Want details on any of these, or a different query?"
    - For single issues: "Want the full description, comments, or linked issues?"
    - For a created issue: "Want to set the assignee, add a description, or link it?"
+
+### Creating an issue
+
+Read the atlassian-mediation skill's `references/jira-writes.md`
+(`${CLAUDE_PLUGIN_ROOT}/skills/atlassian-mediation/references/jira-writes.md`)
+and follow its **Creating Issues** workflow — field placement, prefix→Component
+mapping, and assignee lookup all live there. On top of it, for `/jira create …`:
+
+- Default the issue type to `Task` unless the request names one
+  (bug/story/epic/…).
+- If no `project_key` is injected and the request names no project, ask before
+  creating rather than guessing.
+- Otherwise create directly: `/jira create …` is explicit authorization. Confirm
+  with the created-issue digest in step 4.
 
 ### Rules
 
