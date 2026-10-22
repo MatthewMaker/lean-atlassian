@@ -119,5 +119,38 @@ assert_silent "placeholder -> {}"
 write_settings "$SB/cfg/lean-atlassian.local.md" 'weird"id\with'
 assert_resolves 'quotes and backslashes stay valid JSON' 'weird"id\with'
 
+# 9. Trailing YAML comments are not part of the value. An empty quoted value
+#    with a comment (the shape SKILL.md's template writes) stays unset.
+write_settings "$SB/cfg/lean-atlassian.local.md" COMMENTED \
+    'account_id: ""            # optional — your Jira accountId' \
+    'project_key: MYPROJ   # optional — default project key'
+ctx="$(run_hook | jq -r '.hookSpecificOutput.additionalContext')"
+if grep -qF -- '- account_id:' <<<"$ctx"; then
+    echo "FAIL [commented empty value]: account_id injected:"; grep -F -- '- account_id:' <<<"$ctx"
+    failures=$((failures + 1))
+elif ! grep -qF -- '- project_key: MYPROJ (' <<<"$ctx"; then
+    echo "FAIL [commented unquoted value]: expected project_key MYPROJ in:"; printf '%s\n' "$ctx"
+    failures=$((failures + 1))
+else
+    echo "ok   [trailing comments stripped]"
+fi
+
+# 10. Only the frontmatter is read. Field-like lines in the body (the example
+#     file's sample block) must not stand in for missing frontmatter fields.
+# shellcheck disable=SC2016  # literal Markdown fences
+{ printf -- '---\ncloud_id: "FRONT"\nsite_url: "https://example.test"\n---\n\n'
+  printf -- '```yaml\n---\ncloud_id: "BODY"\naccount_id: "712020:body"\nproject_key: "BODY"\n---\n```\n'
+} > "$SB/cfg/lean-atlassian.local.md"
+assert_resolves "frontmatter wins over body sample" FRONT
+ctx="$(run_hook | jq -r '.hookSpecificOutput.additionalContext')"
+if grep -qE -- '- (account_id|project_key):' <<<"$ctx"; then
+    echo "FAIL [body fields ignored]: leaked from the body:"; grep -E -- '- (account_id|project_key):' <<<"$ctx"
+    failures=$((failures + 1))
+else
+    echo "ok   [body fields ignored]"
+fi
+printf -- 'cloud_id: "NO-FRONTMATTER"\n' > "$SB/cfg/lean-atlassian.local.md"
+assert_silent "no frontmatter -> {}"
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all hook cascade checks passed"
