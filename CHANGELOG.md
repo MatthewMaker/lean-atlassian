@@ -8,6 +8,8 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-22
+
 ### Fixed
 
 - A repository whose copy offer was recorded before 0.9.0, under the old
