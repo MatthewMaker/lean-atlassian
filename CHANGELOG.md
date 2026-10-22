@@ -56,6 +56,10 @@ carried the version bump in `plugin.json`.
 
 ### Fixed
 
+- Hook commands in `hooks.json` didn't quote the script path, so a plugin root
+  containing a space (for example, under a `CLAUDE_CONFIG_DIR` with one) failed
+  to run any hook. All three are quoted now, and `tests/manifest-invariants.sh`
+  rejects an unquoted one and runs each command from a path with a space.
 - A settings file copied from the `.example`, as the README's setup describes,
   auto-approved `addOrEditJiraIssueWorklog`, `createJiraIssueLink` and
   `createConfluenceComment`: the approval list was read from the example's
