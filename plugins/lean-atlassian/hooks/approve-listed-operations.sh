@@ -15,10 +15,7 @@
 # widened.
 #
 # The settings file is resolved by the same first-match cascade as the
-# SessionStart hook (see lib.sh). A global file's list is the user's own and is
-# honoured as is. A project file's list is honoured only once the user has
-# confirmed that exact set of operations (trust-approval-list.sh), because a
-# repository can commit a .claude/lean-atlassian.local.md.
+# SessionStart hook (see lib.sh); project and global lists are treated alike.
 #
 # The list is the body section `## Auto-approved operations`, one operation
 # per `- ` bullet; anything after the name (a comment) is ignored:
@@ -32,7 +29,7 @@
 # settings, so a deny rule still wins.
 #
 # Like the SessionStart hook, this one fails quietly: any missing piece (no jq,
-# no settings file, an unconfirmed project list, unparseable input) emits `{}`
+# no settings file, an unlisted operation, unparseable input) emits `{}`
 # and leaves the decision to the normal permission flow. It never denies.
 
 # shellcheck source=lib.sh
@@ -58,9 +55,6 @@ case "$tool" in
 esac
 
 resolve_settings || pass
-if [[ "$settings_tier" == project ]]; then
-    is_trusted "$settings_file" "${CLAUDE_PLUGIN_DATA:-}" || pass
-fi
 
 approval_list "$settings_file" | grep -qxF -- "$op" || pass
 

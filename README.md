@@ -31,7 +31,7 @@ window with noise.
 | `/confluence` | Command | Search Confluence or fetch a page with digest output |
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
 | `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session |
-| `approve-listed-operations` | Hook | `PreToolUse` hook that auto-approves the `executeRead`/`executeWrite` operations listed in your settings file (project lists once you've confirmed them) |
+| `approve-listed-operations` | Hook | `PreToolUse` hook that auto-approves the `executeRead`/`executeWrite` operations listed in your settings file |
 
 ## Prerequisites
 
@@ -177,11 +177,8 @@ normal prompt appears. Rules:
 - **Same cascade as everything else.** The list comes from whichever settings
   file wins (project first, then global). A project file's list replaces the
   global one; the two are not merged.
-- **A project list needs your confirmation.** A repository can commit
-  `.claude/lean-atlassian.local.md`, so the hook ignores a project file's list
-  until you've confirmed that exact set of operations. Adding or removing an
-  operation needs a fresh confirmation; reordering or editing comments
-  doesn't. A global list is yours and needs none.
+- **Fenced code doesn't count.** A heading or bullet inside a ``` or ~~~
+  block is documentation, not part of the list.
 - **`executeDestructive` is never auto-approved**, whatever the list says.
 - **Deny and ask rules still win.** A hook approval skips the prompt but never
   overrides a matching `deny` or `ask` rule in your Claude Code settings.
@@ -198,12 +195,9 @@ pause. Each is made once — declining means it doesn't come back:
 |------|-------|
 | Only the global file exists and you're in a git repo | Copy it into this repo's `.claude/` (and make sure the copy is git-ignored). Once per repo. |
 | The settings file in use has no `## Auto-approved operations` section | Add one, starting from the three operations above. Once per file. |
-| A project file's list isn't confirmed | Confirm it. Once per file per set of operations. |
 
-Confirming runs `hooks/trust-approval-list.sh`, which records the list's
-fingerprint in the plugin's data directory (`${CLAUDE_PLUGIN_DATA}`, kept
-across plugin updates and removed on uninstall). Claude runs it only after you
-say yes to the exact list.
+Markers for offers already made live in the plugin's data directory
+(`${CLAUDE_PLUGIN_DATA}`, kept across plugin updates and removed on uninstall).
 
 ## Development
 
@@ -212,7 +206,7 @@ No build step. Checks, runnable from anywhere in the repo:
 ```bash
 tests/hook-cascade.sh          # SessionStart hook: precedence, scalars, JSON escaping
 tests/offers.sh                # SessionStart hook: one-time offers fire once, under their condition
-tests/approve-operations.sh    # PreToolUse hook: only listed, project lists confirmed, never destructive
+tests/approve-operations.sh    # PreToolUse hook: only listed, never fenced, never destructive
 tests/manifest-invariants.sh   # manifest structure; version declared exactly once
 shellcheck plugins/*/hooks/*.sh tests/*.sh
 claude plugin validate .

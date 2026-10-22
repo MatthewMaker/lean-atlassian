@@ -79,19 +79,3 @@ approval_list() {
 sha256() {
     if command -v shasum >/dev/null 2>&1; then shasum -a 256; else sha256sum; fi | cut -d' ' -f1
 }
-
-# Fingerprint of FILE's approval list. Sorted and de-duplicated, so reordering
-# bullets or editing their comments keeps a confirmed list confirmed; adding or
-# removing an operation does not.
-list_hash() {
-    approval_list "$1" | sort -u | sha256
-}
-
-# True when the user has confirmed FILE's current approval list. Confirmations
-# live in DATA_DIR/trusted-lists as `<list hash><TAB><file path>` lines, written
-# by trust-approval-list.sh. No data dir means nothing is confirmed.
-is_trusted() {
-    local file="$1" data="$2"
-    [[ -n "$data" && -f "$data/trusted-lists" ]] || return 1
-    grep -qxF -- "$(list_hash "$file")"$'\t'"$file" "$data/trusted-lists"
-}

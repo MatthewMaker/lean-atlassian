@@ -3,8 +3,7 @@
 # Tests the SessionStart hook's one-time offers.
 #
 # Each offer must fire under exactly its condition, at most once (a declined
-# offer never comes back), and never more than one per session. The confirm
-# offer re-arms only when the set of listed operations changes. Without a
+# offer never comes back), and never more than one per session. Without a
 # plugin data dir nothing can be remembered, so nothing is offered. And as
 # with every hook emission, the output must stay valid JSON.
 #
@@ -14,7 +13,6 @@ set -uo pipefail
 
 HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/lean-atlassian/hooks"
 HOOK="$HOOKS/load-atlassian-config.sh"
-TRUST="$HOOKS/trust-approval-list.sh"
 [[ -x "$HOOK" ]] || { echo "FAIL: hook not executable at $HOOK"; exit 1; }
 
 SB="$(mktemp -d)"
@@ -46,7 +44,7 @@ write_settings() {
     } > "$path"
 }
 
-# Assert the next run's offer is of KIND (copy|add|confirm|none).
+# Assert the next run's offer is of KIND (copy|add|none).
 expect_offer() {
     local want="$1" label="$2" text got
     text="$(offer)"
@@ -55,7 +53,6 @@ expect_offer() {
         "")                         got=none ;;
         *"copy it into this"*)      got=copy ;;
         *"has no \`## Auto-approved"*) got=add ;;
-        *"has not confirmed"*)      got=confirm ;;
         *)                          got=unknown ;;
     esac
     if [[ "$got" != "$want" ]]; then
@@ -81,34 +78,17 @@ write_settings "$PROJ_FILE"
 expect_offer add "project file without list -> add"
 expect_offer none "project add spent -> silent"
 
-# 6. An unconfirmed project list: confirm offer, once per set of operations.
+# 6. A project file that already has a list gets no offer.
 write_settings "$PROJ_FILE" createJiraIssueLink
-expect_offer confirm "unconfirmed project list -> confirm"
-expect_offer none "confirm spent -> silent"
-write_settings "$PROJ_FILE" createJiraIssueLink addOrEditJiraIssueWorklog
-expect_offer confirm "changed list -> confirm again"
+expect_offer none "project file with list -> silent"
 
-# 7. A confirmed list is never offered.
-write_settings "$PROJ_FILE" createJiraIssueLink addOrEditJiraIssueWorklog createConfluenceComment
-"$TRUST" "$PROJ_FILE" "$SB/data" >/dev/null
-expect_offer none "confirmed list -> silent"
-
-# 8. The confirm offer names the operations and carries a runnable command.
-write_settings "$PROJ_FILE" 'weird"op'
-text="$(offer)"
-if grep -qF 'weird"op' <<<"$text" && grep -qF "trust-approval-list.sh' '$PROJ_FILE' '$SB/data'" <<<"$text"; then
-    echo "ok   [confirm offer names ops and the trust command; quotes stay valid JSON]"
-else
-    echo "FAIL [confirm offer content]:"; printf '%s\n' "$text"; failures=$((failures + 1))
-fi
-
-# 9. Outside a git repo, a global-only setup gets no copy offer.
+# 7. Outside a git repo, a global-only setup gets no copy offer.
 rm -rf "$SB/proj/.git" "$SB/data" "$PROJ_FILE"
 mkdir -p "$SB/data"
 write_settings "$GLOBAL_FILE" createJiraIssueLink
 expect_offer none "not a git repo, global has list -> silent"
 
-# 10. A file whose only `## Auto-approved operations` is a fenced sample (the
+# 8. A file whose only `## Auto-approved operations` is a fenced sample (the
 #     shipped example) has no list, so it gets the add offer.
 rm -rf "$SB/data"; mkdir -p "$SB/data"
 EXAMPLE="$(cd "$HOOKS/../../.." && pwd)/.claude/lean-atlassian.local.md.example"

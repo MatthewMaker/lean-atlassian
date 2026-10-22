@@ -20,6 +20,16 @@ carried the version bump in `plugin.json`.
   heading to equal the `plugin.json` version, not just to appear somewhere.
 - CI no longer cancels in-flight runs on `main`, only on pull requests.
 
+### Removed
+
+- Confirmation of project approval lists: `trust-approval-list.sh`, the
+  `${CLAUDE_PLUGIN_DATA}/trusted-lists` store, and the one-time "confirm"
+  offer. A project file's `## Auto-approved operations` list is now honoured
+  like a global one. **Behavior change:** a project list that was waiting for
+  confirmation takes effect on upgrade, and so does any list a repository
+  commits in `.claude/lean-atlassian.local.md`. An existing `trusted-lists`
+  file is left in place and no longer read.
+
 ### Fixed
 
 - A settings file copied from the `.example`, as the README's setup describes,
