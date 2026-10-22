@@ -56,7 +56,7 @@ plugins/lean-atlassian/
   hooks/load-atlassian-config.sh         # SessionStart: settings + one-time offers
   hooks/approve-listed-operations.sh     # PreToolUse: per-operation approval
   commands/{jira,confluence}.md
-  skills/atlassian-mediation/SKILL.md    # + references/*.md
+  skills/atlassian-mediation/SKILL.md    # reads; references/jira-writes.md for writes
   agents/atlassian-researcher.md
 .claude/lean-atlassian.local.md.example
 ```
@@ -75,7 +75,9 @@ explicitness:
   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lean-atlassian.local.md` — and injects
   its scalar frontmatter fields as `additionalContext`, so the other components
   never call `getAccessibleAtlassianResources`, `atlassianUserInfo`, or
-  `listJiraProjects`.
+  `listJiraProjects`. It also names the skill and repeats its three most
+  important read rules, because the skill's description can be dropped from
+  the skill listing when many skills are installed.
 - **`atlassian-mediation` skill** is the source of truth for behavior: digest
   formats, JQL/CQL rules, context budgets, prefix→Component mapping, and MCP
   field placement.
@@ -84,8 +86,10 @@ explicitness:
 - **`atlassian-researcher` agent** absorbs multi-call research in its own context
   and returns only a structured briefing.
 
-Change SKILL.md first and keep the commands thin — duplicating a rule into a
-command is how the two drift apart.
+Change SKILL.md (or `references/jira-writes.md`, for anything about writes or
+the settings file's body) first and keep the commands thin — duplicating a rule
+into a command is how the two drift apart. SKILL.md holds only what reads need,
+so a session that never writes doesn't load the write rules.
 
 ## Why the hook exists instead of `!`-injection
 
@@ -106,7 +110,7 @@ self-maintained cache:
 - **`## Auto-approved operations`** — a permission grant, read by the
   `PreToolUse` hook from whichever file the cascade resolves. Claude writes it
   only when the user accepts an offer or asks outright, and carries it over
-  untouched when rewriting the caches (SKILL.md).
+  untouched when rewriting the caches (`references/jira-writes.md`).
 
 Preserve that split when adding settings: scalars in frontmatter, anything
 list-shaped or project-specific in the body.
@@ -116,7 +120,8 @@ list-shaped or project-specific in the body.
 The plugin targets the Atlassian MCP v2 server; tools are
 `mcp__claude_ai_Atlassian_MCP__*`, and operations without a primary tool go
 through `executeRead`/`executeWrite`/`executeDestructive` with a top-level
-`cloudId`. Documented in SKILL.md and `references/mcp-tools-reference.md`:
+`cloudId`. Documented in SKILL.md, `references/jira-writes.md`, and
+`references/mcp-tools-reference.md`:
 
 - The server ignores unknown top-level params rather than rejecting them,
   despite its schemas declaring `additionalProperties: false`. A field in the

@@ -119,7 +119,16 @@ assert_silent "placeholder -> {}"
 write_settings "$SB/cfg/lean-atlassian.local.md" 'weird"id\with'
 assert_resolves 'quotes and backslashes stay valid JSON' 'weird"id\with'
 
-# 9. Trailing YAML comments are not part of the value. An empty quoted value
+# 9. A configured session names the skill and carries the fallback rules.
+ctx="$(run_hook | jq -r '.hookSpecificOutput.additionalContext')"
+if grep -qF 'load the lean-atlassian:atlassian-mediation skill' <<<"$ctx" \
+    && grep -qF 'content_format: markdown' <<<"$ctx"; then
+    echo "ok   [skill pointer and fallback rules injected]"
+else
+    echo "FAIL [skill pointer]: missing from:"; printf '%s\n' "$ctx"; failures=$((failures + 1))
+fi
+
+# 10. Trailing YAML comments are not part of the value. An empty quoted value
 #    with a comment (the shape SKILL.md's template writes) stays unset.
 write_settings "$SB/cfg/lean-atlassian.local.md" COMMENTED \
     'account_id: ""            # optional — your Jira accountId' \
@@ -135,7 +144,7 @@ else
     echo "ok   [trailing comments stripped]"
 fi
 
-# 10. Only the frontmatter is read. Field-like lines in the body (the example
+# 11. Only the frontmatter is read. Field-like lines in the body (the example
 #     file's sample block) must not stand in for missing frontmatter fields.
 # shellcheck disable=SC2016  # literal Markdown fences
 { printf -- '---\ncloud_id: "FRONT"\nsite_url: "https://example.test"\n---\n\n'
@@ -152,7 +161,7 @@ fi
 printf -- 'cloud_id: "NO-FRONTMATTER"\n' > "$SB/cfg/lean-atlassian.local.md"
 assert_silent "no frontmatter -> {}"
 
-# 11. A project dir whose .claude IS the config dir (a session in $HOME) reads
+# 12. A project dir whose .claude IS the config dir (a session in $HOME) reads
 #     the file as global, not as a project file.
 write_settings "$SB/cfg/lean-atlassian.local.md" HOME-SESSION
 mkdir -p "$SB/home"; ln -s "$SB/cfg" "$SB/home/.claude"

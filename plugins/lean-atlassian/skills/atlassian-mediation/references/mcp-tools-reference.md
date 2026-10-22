@@ -55,7 +55,7 @@ paging is at `.issues.pageInfo` — pass `endCursor` as `nextPageToken` while
 | `addOrEditJiraIssueComment` | Add a comment, or edit one by `commentId` | `cloudId`, `issueIdOrKey`, `commentBody` (markdown) |
 
 An unknown top-level parameter is silently ignored, not rejected — a field in
-the wrong place leaves it unset with no error. See SKILL.md's *Field placement*.
+the wrong place leaves it unset with no error. See `jira-writes.md`'s *Field placement*.
 
 ### Operations
 

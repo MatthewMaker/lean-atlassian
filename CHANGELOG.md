@@ -20,6 +20,21 @@ carried the version bump in `plugin.json`.
   heading to equal the `plugin.json` version, not just to appear somewhere.
 - CI no longer cancels in-flight runs on `main`, only on pull requests.
 
+- `SKILL.md` holds only what reads need (about 10 KB, from about 17 KB). Creating
+  and editing issues, sprint moves, the settings file's caches and the
+  `## Auto-approved operations` rules move to
+  `skills/atlassian-mediation/references/jira-writes.md`, which `SKILL.md` and
+  `/jira` point to before any write.
+- The `SessionStart` context names the `atlassian-mediation` skill and repeats
+  its three core read rules (digests, never raw JSON; `fields`/`maxResults` on
+  JQL search; `content_format: markdown` on Confluence fetch), so they apply
+  even when the skill's description is dropped from the skill listing.
+- The skill's frontmatter `name` is kebab-case: `atlassian-mediation`.
+- `/jira`'s create section no longer restates the skill's workflow, and sits
+  after the numbered steps instead of splitting them.
+- The skill's "save your settings" fallback checks the file is git-ignored
+  before writing it, as the one-time copy offer already did.
+
 ### Removed
 
 - Confirmation of project approval lists: `trust-approval-list.sh`, the

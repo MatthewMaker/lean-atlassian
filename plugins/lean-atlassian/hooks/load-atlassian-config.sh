@@ -96,6 +96,10 @@ ctx+="- site_url: ${site_url}\n"
 # Only surface the optional identifiers that are actually configured.
 [[ -n "$account_id" ]] && ctx+="- account_id: ${account_id} (your Jira accountId — use for assignment; do NOT call atlassianUserInfo)\n"
 [[ -n "$project_key" ]] && ctx+="- project_key: ${project_key} (default Jira project for searches and new issues)\n"
+# The skill's description can be dropped from the skill listing when many
+# skills are installed, so name it here, with the rules that matter most if it
+# never loads.
+ctx+="\nBefore any Atlassian MCP call, load the lean-atlassian:atlassian-mediation skill. Until it is loaded: reply with digests, never raw JSON; pass fields and maxResults to searchJiraIssuesUsingJql; pass content_format: markdown to getConfluenceContent.\n"
 ctx+="\n(loaded from ${src})"
 
 # --- One-time offers ---------------------------------------------------------
