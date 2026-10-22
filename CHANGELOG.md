@@ -44,6 +44,11 @@ carried the version bump in `plugin.json`.
 - `atlassian-researcher` uses the `sonnet` model alias instead of the pinned
   `claude-sonnet-4-6`.
 
+- The one-time offer to copy the global settings into a repository is made
+  once per repository, not once per checkout path: worktrees of one
+  repository share it, so a new worktree no longer asks again. A copy offer
+  already made under the old per-path key still counts.
+
 ### Removed
 
 - Confirmation of project approval lists: `trust-approval-list.sh`, the

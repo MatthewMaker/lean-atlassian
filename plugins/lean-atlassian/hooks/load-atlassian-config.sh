@@ -128,7 +128,8 @@ fi
 # written when the offer is injected, so a declined offer doesn't come back:
 #
 #   copy     only the global file exists and the session is in a git repo:
-#            offer to copy it into this repo's .claude/ (once per repo)
+#            offer to copy it into this repo's .claude/ (once per repository,
+#            shared by all its worktrees)
 #   add      the resolved file has no `## Auto-approved operations` section:
 #            offer to add one (once per file)
 #
@@ -146,12 +147,28 @@ offer_once() {
     mkdir -p "$data/offers" 2>/dev/null && printf '%s\n' "$1" > "$marker" 2>/dev/null
 }
 
+# True when KEY was already offered. Checks only; records nothing.
+offered() {
+    [[ -n "$data" && -e "$data/offers/$(printf '%s' "$1" | sha256)" ]]
+}
+
+# The repository the session is in, as its git common directory: every
+# worktree of one repository shares it. Falls back to the project path when
+# git can't say (not installed, or a .git that isn't a repository).
+repo_id() {
+    local common
+    common="$(git -C "$proj" rev-parse --git-common-dir 2>/dev/null)" \
+        && (cd "$proj" && cd "$common" && pwd -P) 2>/dev/null \
+        || printf '%s' "$proj"
+}
+
 suggested="addOrEditJiraIssueWorklog, createJiraIssueLink, createConfluenceComment"
 offer=""
 proj_file="$proj/.claude/lean-atlassian.local.md"
 
 if [[ "$settings_tier" == global && -e "$proj/.git" && ! "$proj" -ef "$HOME" ]] \
-    && offer_once "copy:$proj"; then
+    && ! offered "copy:$proj" \
+    && offer_once "copy:$(repo_id)"; then
     offer+="Your Atlassian settings come from the global file ${settings_file}, and this git repository has none of its own. "
     offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to copy it into this repository as ${proj_file}. "
     offer+="Copy, don't move: leave the global file in place for other repositories. "

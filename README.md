@@ -193,7 +193,7 @@ pause. Each is made once — declining means it doesn't come back:
 
 | When | Offer |
 |------|-------|
-| Only the global file exists and you're in a git repo | Copy it into this repo's `.claude/` (and make sure the copy is git-ignored). Once per repo. |
+| Only the global file exists and you're in a git repo | Copy it into this repo's `.claude/` (and make sure the copy is git-ignored). Once per repository, across all its worktrees. |
 | The settings file in use has no `## Auto-approved operations` section | Add one, starting from the three operations above. Once per file. |
 
 Markers for offers already made live in the plugin's data directory
