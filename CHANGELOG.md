@@ -8,6 +8,13 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-21
+
+Two changes can affect an existing install on upgrade. A project file's
+`## Auto-approved operations` list is honoured without a confirmation step, so
+a list that was waiting for one takes effect (see Removed). A settings file
+with no `---` frontmatter block is treated as unconfigured (see Fixed).
+
 ### Added
 
 - `SubagentStart` hook for the `atlassian-researcher` agent: the same
@@ -25,7 +32,6 @@ carried the version bump in `plugin.json`.
 - `tests/manifest-invariants.sh` now requires the newest released CHANGELOG
   heading to equal the `plugin.json` version, not just to appear somewhere.
 - CI no longer cancels in-flight runs on `main`, only on pull requests.
-
 - `SKILL.md` holds only what reads need (about 10 KB, from about 17 KB). Creating
   and editing issues, sprint moves, the settings file's caches and the
   `## Auto-approved operations` rules move to
@@ -40,10 +46,8 @@ carried the version bump in `plugin.json`.
   after the numbered steps instead of splitting them.
 - The skill's "save your settings" fallback checks the file is git-ignored
   before writing it, as the one-time copy offer already did.
-
 - `atlassian-researcher` uses the `sonnet` model alias instead of the pinned
   `claude-sonnet-4-6`.
-
 - The one-time offer to copy the global settings into a repository is made
   once per repository, not once per checkout path: worktrees of one
   repository share it, so a new worktree no longer asks again. A copy offer
