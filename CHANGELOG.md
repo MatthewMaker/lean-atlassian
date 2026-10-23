@@ -8,6 +8,8 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-23
+
 ### Changed
 
 - Jira searches default to 15 results in the skill as well as `/jira` (the
@@ -19,6 +21,10 @@ carried the version bump in `plugin.json`.
 
 ### Fixed
 
+- A repository whose copy offer was recorded before 0.9.0, under the old
+  per-checkout marker, no longer gets the offer again in each of its other
+  worktrees: the old marker is carried over to the repository the first time
+  it's found.
 - `references/jira-writes.md` no longer says `transitionJiraIssue` reports
   whether a sprint move happened; its response carries the workflow status,
   not the sprint. The paragraph is removed rather than reworded: the tool
@@ -41,15 +47,6 @@ carried the version bump in `plugin.json`.
   (now at most once per project per session).
 - A stale pointer in `references/jira-writes.md` to the removed read-back
   paragraph.
-
-## [0.9.1] - 2026-10-22
-
-### Fixed
-
-- A repository whose copy offer was recorded before 0.9.0, under the old
-  per-checkout marker, no longer gets the offer again in each of its other
-  worktrees: the old marker is carried over to the repository the first time
-  it's found.
 
 ## [0.9.0] - 2026-10-21
 
