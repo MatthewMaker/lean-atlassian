@@ -22,7 +22,7 @@ type = page AND lastModified >= "2024-01-01" ORDER BY lastModified DESC
 space.key = "ENG" AND type = page ORDER BY title ASC
 
 -- Recently updated in a space
-space.key = "ENG" AND type = page AND lastModified >= -7d ORDER BY lastModified DESC
+space.key = "ENG" AND type = page AND lastModified >= now("-7d") ORDER BY lastModified DESC
 
 -- Search within multiple spaces
 space.key IN ("ENG", "OPS", "PROD") AND text ~ "runbook" AND type = page
@@ -81,7 +81,7 @@ type = page AND label IN ("runbook", "operations", "incident")
 space.key = "ENG"
   AND type = page
   AND label = "runbook"
-  AND lastModified >= -30d
+  AND lastModified >= now("-30d")
 ORDER BY lastModified DESC
 
 -- Search within a subtree for a keyword

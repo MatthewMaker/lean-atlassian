@@ -49,8 +49,8 @@ paging is at `.issues.pageInfo` — pass `endCursor` as `nextPageToken` while
 | Tool | Purpose | Key params |
 |------|---------|-----------|
 | `getJiraIssue` | Fetch a single issue | `cloudId`, `issueIdOrKey`, `view` (`compact` default; `evidence` adds issue links and custom fields) |
-| `createJiraIssue` | Create an issue | `cloudId`, `projectKey`, `summary`, `issueType`; top-level `assignee` (accountId), `priority`, `labels`, `parent`, `assignToSprint` (sprint id); components/fixVersions/custom fields in `additional_fields` |
-| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, `fields` (raw Jira shapes, assignee included as `{"accountId": …}`); multi-value fields are replaced, not appended |
+| `createJiraIssue` | Create an issue | `cloudId`, `projectKey`, `summary`, `issueType`; top-level `assignee` (accountId), `priority`, `labels`, `parent`, `assignToSprint` (sprint id, exact sprint name, or `"active"`); components/fixVersions/custom fields in `additional_fields` |
+| `editJiraIssue` | Edit issue fields | `cloudId`, `issueIdOrKey`, `additional_fields` (as for create) and/or `fields` (raw Jira shapes, assignee included as `{"accountId": …}`); multi-value fields are replaced, not appended |
 | `transitionJiraIssue` | Change status and/or sprint | `cloudId`, `issueIdOrKey`, `transitionId` or `transitionName`, `sprintId` (integer), `assignToBacklog` |
 | `addOrEditJiraIssueComment` | Add a comment, or edit one by `commentId` | `cloudId`, `issueIdOrKey`, `commentBody` (markdown) |
 

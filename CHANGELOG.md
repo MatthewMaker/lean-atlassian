@@ -8,6 +8,42 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Changed
+
+- Jira searches default to 15 results in the skill as well as `/jira` (the
+  skill said 10, 10–20, and passed `maxResults: 10`). Confluence stays at 10.
+- The `atlassian-mediation` skill's description now also triggers on
+  creating, editing, and transitioning Jira issues and on sprint moves, so the
+  skill (and its pointer to `references/jira-writes.md`) loads for writes, not
+  only reads.
+
+### Fixed
+
+- `references/jira-writes.md` no longer says `transitionJiraIssue` reports
+  whether a sprint move happened; its response carries the workflow status,
+  not the sprint. The paragraph is removed rather than reworded: the tool
+  descriptions already cover read-back.
+- CQL examples in `/confluence` and `references/cql-patterns.md` use
+  `lastModified >= now("-7d")`; the bare `-7d` form fails to parse in CQL.
+- Assigning an issue resolves the name with `listJiraIssueAssignableUsers`,
+  which returns only people who can be assigned in the project, not
+  `lookupJiraAccountId`, which still serves for filtering by a person.
+- `editJiraIssue` is documented as taking `additional_fields` as well as
+  `fields`, and `assignToSprint` as accepting a sprint name or `"active"` as
+  well as an id.
+- The single-issue fetch no longer claims the default view reports a comment
+  count; only `view: "evidence"` does.
+- Removed instructions that cost a call for no gain: the `Sprint:` slot in the
+  `/jira` single-issue digest (Sprint isn't in the default view), the author
+  in Confluence digests (results carry no name), the outline-then-full double
+  fetch for a single Confluence page, the researcher's shape inspection before
+  every `jq` extraction, and a Component re-fetch on every non-matching prefix
+  (now at most once per project per session).
+- A stale pointer in `references/jira-writes.md` to the removed read-back
+  paragraph.
+
+## [0.9.1] - 2026-10-22
+
 ### Fixed
 
 - A repository whose copy offer was recorded before 0.9.0, under the old
