@@ -48,7 +48,7 @@ Perform a focused Jira lookup or search and return a compact digest.
      - "login bug" → `text ~ "login bug" AND status != Done ORDER BY updated DESC`
 
 3. **Fetch results**:
-   - For searches: pass `maxResults` (at most 15) and the digest `fields`. Do
+   - For searches: pass `maxResults: 15` and the digest `fields`. Do
      not fetch full issue bodies.
    - For single issue: fetch the issue. Produce a digest, not the raw JSON.
 
@@ -71,7 +71,7 @@ Perform a focused Jira lookup or search and return a compact digest.
    Status: In Progress  |  Assignee: Alice  |  Priority: High
    Reporter: Bob  |  Created: Jan 10  |  Updated: Jan 15
    Labels: auth, bug
-   Type: Bug  |  Sprint: Sprint 12
+   Type: Bug
 
    Summary:
    <2–3 sentence description from the issue body, not the full text>

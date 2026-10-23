@@ -34,9 +34,9 @@ field, it takes the raw Jira shape:
 {"components": [{"name": "Frontend"}], "customfield_10010": 8}
 ```
 
-`editJiraIssue` is different: it takes a parameter named **`fields`** with raw
-Jira shapes, assignee included, and does not set the sprint at all (see
-**Sprint assignment**):
+`editJiraIssue` takes the same `additional_fields`, plus a **`fields`**
+parameter for raw Jira shapes, where assignee is an object rather than a bare
+accountId. It does not set the sprint at all (see **Sprint assignment**):
 
 ```json
 {"assignee": {"accountId": "…"}, "components": [{"name": "Frontend"}]}
@@ -51,8 +51,7 @@ A create the server *does* reject comes back with a `repairHint` naming the
 field at fault; correct that field and retry.
 
 This is a "pass the right shape" rule, not a "verify afterwards" rule — it adds no
-follow-up read. See **Sprint assignment** under *Editing Issues* for why a trusted
-write needs no confirming fetch.
+follow-up read.
 
 ### Summary prefixes → Components
 
@@ -72,7 +71,8 @@ When creating an issue:
 
 2. **Get the project's Components.** Read the **Component cache** for this project
    from the settings file first. On a miss — no cached list, or a candidate
-   matches nothing — fetch the live list once with `executeRead` and
+   matches nothing — fetch the live list with `executeRead`, at most once per
+   project per session, and
    `name: "listJiraProjectComponents"`, `inputs: {projectIdOrKey: <key>}` (read
    each component's `name`), then rewrite the cache section.
 
@@ -98,10 +98,11 @@ When creating an issue:
 ### Assignees and people
 
 To assign an issue or filter by a person, resolve the name to an accountId via
-the **People cache** in the settings file first. On a miss, call
-`lookupJiraAccountId` once (via `executeRead`, `inputs: {query: <name>}`), then
-append the result to the cache so future
-references skip the lookup. Use the injected `account_id` for the current user
+the **People cache** in the settings file first. On a miss, call (via
+`executeRead`) `listJiraIssueAssignableUsers` to assign
+(`inputs: {project: <key>, query: <name>}`; it returns only people who can be
+assigned there) or `lookupJiraAccountId` to filter (`inputs: {query: <name>}`),
+then append the result to the cache so future references skip the lookup. Use the injected `account_id` for the current user
 without any lookup.
 
 ## Editing Issues
@@ -114,7 +115,8 @@ list for `labels` and `components`. Status and sprint changes go through
 ### Sprint assignment
 
 Sprints are addressed by the sprint's **numeric id**, **not** the sprint
-number.
+number. `createJiraIssue`'s `assignToSprint` also accepts the exact sprint name
+or `"active"`.
 
 - **New issue**: pass `assignToSprint: "<id>"` to `createJiraIssue`. The response
   reports `sprintAssignment.assigned`. If it is `false`, the issue was still
@@ -122,10 +124,6 @@ number.
 - **Existing issue**: call `transitionJiraIssue` with `issueIdOrKey` and
   `sprintId: <id>` (an integer). No workflow transition is needed alongside it.
   `assignToBacklog: true` moves it out of a sprint instead.
-
-**Don't follow either with `getJiraIssue` to check.** Both responses say whether
-the sprint move happened; a confirming read spends context on something the
-response already told you.
 
 ## Settings-file caches (file body)
 
@@ -137,11 +135,11 @@ body, refreshing each on a miss (append the freshly-fetched value, exactly like 
 self-updating note):
 
 - **Component cache** — one list of Component names per project key. On a prefix
-  that matches nothing, re-fetch the project's live Components once (one may have
-  been added), rewrite the list, then retry.
+  that matches nothing, re-fetch the project's live Components (one may have
+  been added) unless this session already did, rewrite the list, then retry.
 - **People cache** — a `Full Name: accountId` list for people you assign or query
-  about. On a name miss, call `lookupJiraAccountId` (via `executeRead`) once,
-  then append it here.
+  about. On a name miss, look the person up as **Assignees and people**
+  describes, then append them here.
 
 ```markdown
 ## Component cache (auto-maintained)

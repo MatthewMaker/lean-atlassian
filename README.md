@@ -108,8 +108,9 @@ Ask naturally:
 ### Skill (automatic)
 
 The `atlassian-mediation` skill activates automatically whenever you ask Claude
-to look up Jira or Confluence content, enforcing context-efficient behavior
-without any explicit invocation.
+to look up Jira or Confluence content, or to create, edit, transition, or
+re-sprint a Jira issue, enforcing context-efficient behavior without any
+explicit invocation.
 
 ## Configuration
 

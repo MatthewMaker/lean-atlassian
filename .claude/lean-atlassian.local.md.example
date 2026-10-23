@@ -102,10 +102,11 @@ _refreshed: 2026-07-05_
 - WIP
 ```
 
-- **Component cache** — one Component list per project key; refreshed when a
-  prefix matches nothing (a Component may have been added since).
+- **Component cache** — one Component list per project key; refreshed, at most
+  once per session, when a prefix matches nothing (a Component may have been
+  added since).
 - **People cache** — `Full Name: accountId`, so assigning or querying a person
-  skips the `lookupJiraAccountId` call after the first time.
+  skips the user lookup after the first time.
 - **Prefix exceptions** — tokens that should never be treated as a Component
   prefix even if a Component of that name exists.
 

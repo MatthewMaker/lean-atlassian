@@ -40,14 +40,14 @@ Perform a focused Confluence search or page fetch and return a compact digest.
      Examples:
      - "deployment runbooks" → `text ~ "deployment" AND type = page AND label = "runbook" ORDER BY lastModified DESC`
      - "auth docs in ENG space" → `space.key = "ENG" AND text ~ "authentication" AND type = page ORDER BY lastModified DESC`
-     - "recently updated pages" → `type = page AND lastModified >= -7d ORDER BY lastModified DESC`
+     - "recently updated pages" → `type = page AND lastModified >= now("-7d") ORDER BY lastModified DESC`
 
 3. **Fetch results**:
    - For searches: pass `limit: 10`. Do not fetch page bodies during search.
    - For single page fetch: use `content_format: "markdown"` and
-     `detail: "outline"` for the table of contents; fetch `detail: "full"` only
-     to write the abstract or read a section. Summarize; do not dump the full
-     body.
+     `detail: "full"`, and build the table of contents from its headings. Use
+     `detail: "outline"` alone when only the table of contents is wanted.
+     Summarize; do not dump the full body.
 
 4. **Output digest**:
 
@@ -56,10 +56,10 @@ Perform a focused Confluence search or page fetch and return a compact digest.
    Found N pages (CQL: <the query used>)
 
    [Deployment Runbook] — Engineering
-     Last edited: Jan 15 by Alice
+     Last edited: Jan 15
      Preview: How to deploy services to production. This runbook covers...
    [Auth Service Overview] — Engineering
-     Last edited: Jan 12 by Bob
+     Last edited: Jan 12
      Preview: Architecture overview for the authentication service...
    ...
    ```
@@ -67,7 +67,7 @@ Perform a focused Confluence search or page fetch and return a compact digest.
    For a single page:
    ```
    [Page Title] — Space Name
-   Last edited: Jan 15 by Alice  |  Version: 23
+   Last edited: Jan 15  |  Version: 23
    URL: https://org.atlassian.net/wiki/spaces/ENG/pages/123456789
 
    ## Table of Contents

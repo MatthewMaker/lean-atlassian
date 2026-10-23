@@ -120,8 +120,7 @@ returns. You have no write tools; don't look for any.
      inline `python3`), e.g.
      `jq -r '.issues.nodes[] | "[\(.key)] \(.fields.summary) — \(.fields.status.name) · \(.fields.priority.name // "—") · \(.fields.updated)"' <file>`.
    - The issue array is at **`.issues.nodes[]`**, with paging metadata at
-     `.issues.pageInfo` (`hasNextPage`, `endCursor`) — inspect the JSON's
-     top-level shape first and adapt the path if a response differs. If
+     `.issues.pageInfo` (`hasNextPage`, `endCursor`). If
      `.issues.pageInfo.hasNextPage == true`, re-run passing
      `.issues.pageInfo.endCursor` as `nextPageToken`, repeating until
      `hasNextPage` is false, concatenating results.

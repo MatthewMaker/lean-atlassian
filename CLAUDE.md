@@ -134,10 +134,12 @@ through `executeRead`/`executeWrite`/`executeDestructive` with a top-level
   `labels`, `parent`, and `assignToSprint` are top-level;
   components/fixVersions/`customfield_*` go inside snake_case
   `additional_fields`.
-- `editJiraIssue`: raw Jira shapes inside `fields`, assignee included. It
-  doesn't move sprints or change status — `transitionJiraIssue` does both
-  (`sprintId`, `transitionId`).
+- `editJiraIssue`: the same `additional_fields`, or raw Jira shapes inside
+  `fields`, assignee included. It doesn't move sprints or change status —
+  `transitionJiraIssue` does both (`sprintId`, `transitionId`).
 - Sprints take the numeric sprint id, not the sprint number.
+  `createJiraIssue`'s `assignToSprint` also takes the exact sprint name or
+  `"active"`; `transitionJiraIssue`'s `sprintId` takes only the id.
 - `searchJiraIssuesUsingJql` honours `fields` and `maxResults` (default 50,
   max 100). Issues are at `.issues.nodes[]`, paging at `.issues.pageInfo`
   (`endCursor` → `nextPageToken`). A large result can still overflow; the

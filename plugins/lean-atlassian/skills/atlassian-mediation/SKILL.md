@@ -8,7 +8,10 @@ description: >
   "what's blocked", "what's in progress", "what's in this sprint", or any
   task that involves reading from or searching Atlassian (Jira or Confluence)
   — including activity, progress, and "what changed" questions that imply a
-  Jira or Confluence query. Guides efficient, low-bloat interaction with the
+  Jira or Confluence query. Also use it before creating, editing, or
+  transitioning a Jira issue or moving one between sprints ("create a ticket",
+  "file a bug", "assign this to me", "move X into this sprint", "close Y").
+  Guides efficient, low-bloat interaction with the
   Atlassian MCP server by enforcing digest output, cloudId caching, and
   targeted queries.
 ---
@@ -113,14 +116,15 @@ or fetch is:
 
 ```
 [Page Title] — Space Name
-  Last edited: 2024-01-15 by Author
+  Last edited: 2024-01-15
   Excerpt: first ~120 characters of body content...
   URL: https://org.atlassian.net/wiki/...
 ```
 
 ### Search Results Digest
 
-Present at most **10 results** per search, each as a single-line digest.
+Present at most **15 Jira issues** or **10 Confluence pages** per search, each as
+a single-line digest.
 Never dump raw JSON. Never include full body content unless the user explicitly
 asks to "show the full page" or "show full details".
 
@@ -131,14 +135,14 @@ asks to "show the full page" or "show full details".
 Use `searchJiraIssuesUsingJql` with a targeted JQL query, and always pass
 `fields` and `maxResults` — both are honoured, and `maxResults` defaults to 50.
 Default fields: `summary`, `status`, `assignee`, `priority`, `labels`, `updated`.
-Limit to 10–20 results unless the user asks for more.
+Limit to 15 results unless the user asks for more.
 
 ```
 searchJiraIssuesUsingJql(
   cloudId: <from settings>,
   jql: "project = MYPROJ AND status != Done ORDER BY updated DESC",
   fields: ["summary", "status", "assignee", "priority", "labels", "updated"],
-  maxResults: 10
+  maxResults: 15
 )
 ```
 
@@ -151,8 +155,9 @@ Produce a digest list. Offer: "Want details on any of these?"
 
 Use `getJiraIssue` only when the user asks about a specific ticket. The default
 `view: "compact"` is enough for a digest; use `view: "evidence"` when you need
-issue links or custom fields. It reports a comment count, not the comments —
-read those with `listJiraIssueComments` (via `executeRead`) only on request.
+issue links or custom fields. Neither returns comment bodies; `evidence` adds
+the count (`comment.total`). Read the comments with `listJiraIssueComments`
+(via `executeRead`) only on request.
 Produce a digest, then offer to show the full description or comments.
 
 ### JQL Patterns
@@ -222,7 +227,7 @@ Apply these limits at all times:
 
 | Operation | Max results | Body content |
 |-----------|-------------|--------------|
-| JQL search | 10–20 | Never in search |
+| JQL search | 15 | Never in search |
 | CQL search | 10 | Never in search |
 | Single Jira issue | 1 | Digest only; full on request |
 | Single Confluence page | 1 | Summarize; section on request |
