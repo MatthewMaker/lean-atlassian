@@ -8,6 +8,8 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-11-04
+
 ### Fixed
 
 - The `PreToolUse` auto-approve hook works with native Windows `jq.exe`. Its
