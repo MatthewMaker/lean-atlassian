@@ -131,5 +131,29 @@ else
     echo "FAIL [unparseable input]: got $out"; failures=$((failures + 1))
 fi
 
+# 11. A jq that writes CRLF, as native Windows jq.exe does under Git Bash,
+#     still lets a listed operation through. The shim adds \r to every output
+#     line unless the call passes -b / --binary.
+mkdir -p "$SB/shim"
+REAL_JQ="$(command -v jq)"
+cat > "$SB/shim/jq" <<EOF
+#!/usr/bin/env bash
+for a in "\$@"; do
+    [[ "\$a" == -b || "\$a" == --binary ]] && exec "$REAL_JQ" "\$@"
+done
+"$REAL_JQ" "\$@" | sed 's/\$/\r/'
+EOF
+chmod +x "$SB/shim/jq"
+rm -f "$SB/cfg"/*.md
+write_list "$SB/cfg/lean-atlassian.local.md" '- createJiraIssueLink'
+out="$(jq -nc --arg t "${RUNNER}__executeWrite" \
+        '{hook_event_name: "PreToolUse", tool_name: $t, tool_input: {name: "createJiraIssueLink", cloudId: "x", inputs: {}}}' \
+    | PATH="$SB/shim:$PATH" CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="$SB/data" "$HOOK")"
+if [[ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // "none"' 2>/dev/null)" == allow ]]; then
+    echo "ok   [CRLF jq (Windows) still approves a listed op]"
+else
+    echo "FAIL [CRLF jq (Windows)]: got $out"; failures=$((failures + 1))
+fi
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all operation-approval checks passed"

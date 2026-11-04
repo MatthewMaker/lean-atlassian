@@ -44,8 +44,11 @@ pass() {
 command -v jq >/dev/null 2>&1 || pass
 
 input="$(cat)"
-tool="$(jq -r '.tool_name // empty' <<<"$input" 2>/dev/null)"
-op="$(jq -r '.tool_input.name // empty' <<<"$input" 2>/dev/null)"
+# -b (--binary): native Windows jq.exe ends lines with CRLF, so under Git Bash
+# the value would keep a trailing \r and never match a runner name or a listed
+# operation. On macOS and Linux it's a no-op.
+tool="$(jq -b -r '.tool_name // empty' <<<"$input" 2>/dev/null)"
+op="$(jq -b -r '.tool_input.name // empty' <<<"$input" 2>/dev/null)"
 [[ -n "$tool" && -n "$op" ]] || pass
 
 # Only the read/write runners are eligible.
@@ -58,7 +61,7 @@ resolve_settings || pass
 
 approval_list "$settings_file" | grep -qxF -- "$op" || pass
 
-jq -n --arg reason "lean-atlassian: $op is listed under Auto-approved operations in $settings_src" '{
+jq -b -n --arg reason "lean-atlassian: $op is listed under Auto-approved operations in $settings_src" '{
     hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "allow",

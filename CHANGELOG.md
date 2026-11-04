@@ -8,6 +8,13 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Fixed
+
+- The `PreToolUse` auto-approve hook works with native Windows `jq.exe`. Its
+  CRLF output left a trailing `\r` on the tool and operation names under Git
+  Bash, so no listed operation ever matched and every call fell back to the
+  normal prompt. The hook now calls `jq -b`.
+
 ## [0.9.1] - 2026-10-23
 
 ### Changed
