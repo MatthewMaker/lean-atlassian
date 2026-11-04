@@ -131,5 +131,49 @@ else
     echo "FAIL [unparseable input]: got $out"; failures=$((failures + 1))
 fi
 
+# 11. A jq that writes CRLF, as native Windows jq.exe does under Git Bash,
+#     still lets a listed operation through. The shim adds \r to every output
+#     line unless the call passes -b / --binary.
+mkdir -p "$SB/shim"
+REAL_JQ="$(command -v jq)"
+cat > "$SB/shim/jq" <<EOF
+#!/usr/bin/env bash
+for a in "\$@"; do
+    [[ "\$a" == -b || "\$a" == --binary ]] && exec "$REAL_JQ" "\$@"
+done
+"$REAL_JQ" "\$@" | awk '{ printf "%s\r\n", \$0 }'
+EOF
+chmod +x "$SB/shim/jq"
+rm -f "$SB/cfg"/*.md
+write_list "$SB/cfg/lean-atlassian.local.md" '- createJiraIssueLink'
+out="$(jq -nc --arg t "${RUNNER}__executeWrite" \
+        '{hook_event_name: "PreToolUse", tool_name: $t, tool_input: {name: "createJiraIssueLink", cloudId: "x", inputs: {}}}' \
+    | PATH="$SB/shim:$PATH" CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" CLAUDE_PLUGIN_DATA="$SB/data" "$HOOK")"
+if [[ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // "none"' 2>/dev/null)" == allow ]]; then
+    echo "ok   [CRLF jq (Windows) still approves a listed op]"
+else
+    echo "FAIL [CRLF jq (Windows)]: got $out"; failures=$((failures + 1))
+fi
+
+# 12. A settings file saved by a Windows tool grants the same operations: CRLF
+#     line endings, a UTF-8 byte-order mark, or UTF-16 with a BOM.
+# Re-encode stdin (LF, UTF-8) as the named variant.
+encode() {
+    case "$1" in
+        crlf)     awk '{ printf "%s\r\n", $0 }' ;;
+        bom)      printf '\xef\xbb\xbf'; cat ;;
+        bom-crlf) printf '\xef\xbb\xbf'; awk '{ printf "%s\r\n", $0 }' ;;
+        utf16le)  printf '\xff\xfe'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16LE ;;
+        utf16be)  printf '\xfe\xff'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16BE ;;
+    esac
+}
+for enc in crlf bom bom-crlf utf16le utf16be; do
+    # shellcheck disable=SC2016  # the backticks are literal Markdown, not expansion
+    write_list "$SB/plain.md" '- `createJiraIssueLink` — issue-to-issue links'
+    encode "$enc" < "$SB/plain.md" > "$SB/cfg/lean-atlassian.local.md"
+    expect allow "$enc settings file" "${RUNNER}__executeWrite" createJiraIssueLink
+    expect pass "$enc settings file, unlisted op" "${RUNNER}__executeWrite" createJiraIssue
+done
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all operation-approval checks passed"
