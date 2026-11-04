@@ -155,5 +155,25 @@ else
     echo "FAIL [CRLF jq (Windows)]: got $out"; failures=$((failures + 1))
 fi
 
+# 12. A settings file saved by a Windows tool grants the same operations: CRLF
+#     line endings, a UTF-8 byte-order mark, or UTF-16 with a BOM.
+# Re-encode stdin (LF, UTF-8) as the named variant.
+encode() {
+    case "$1" in
+        crlf)     awk '{ printf "%s\r\n", $0 }' ;;
+        bom)      printf '\xef\xbb\xbf'; cat ;;
+        bom-crlf) printf '\xef\xbb\xbf'; awk '{ printf "%s\r\n", $0 }' ;;
+        utf16le)  printf '\xff\xfe'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16LE ;;
+        utf16be)  printf '\xfe\xff'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16BE ;;
+    esac
+}
+for enc in crlf bom bom-crlf utf16le utf16be; do
+    # shellcheck disable=SC2016  # the backticks are literal Markdown, not expansion
+    write_list "$SB/plain.md" '- `createJiraIssueLink` — issue-to-issue links'
+    encode "$enc" < "$SB/plain.md" > "$SB/cfg/lean-atlassian.local.md"
+    expect allow "$enc settings file" "${RUNNER}__executeWrite" createJiraIssueLink
+    expect pass "$enc settings file, unlisted op" "${RUNNER}__executeWrite" createJiraIssue
+done
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all operation-approval checks passed"

@@ -46,23 +46,39 @@ resolve_settings() {
     return 1
 }
 
+# Print FILE as UTF-8 with LF line endings, whichever editor saved it. Every
+# reader of the settings file goes through this, so the parsers only ever see
+# one format. UTF-16 with a byte-order mark (what Windows PowerShell 5.1's `>`
+# writes) is converted with iconv; then a UTF-8 byte-order mark and CR line
+# endings are dropped. Prints nothing when FILE is unreadable, or when it's
+# UTF-16 and iconv is missing.
+settings_text() {
+    local bom
+    bom="$(head -c 2 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+    case "$bom" in
+        fffe|feff) iconv -f UTF-16 -t UTF-8 "$1" 2>/dev/null ;;
+        *) cat "$1" 2>/dev/null ;;
+    # LC_ALL=C makes awk match the BOM byte by byte; in a UTF-8 locale it doesn't.
+    esac | LC_ALL=C awk 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, ""); print }'
+}
+
 # Both functions below skip fenced code blocks (``` or ~~~): a heading or bullet
 # inside a fence is documentation, such as the sample list in the .example
 # file, and must never grant anything.
 
 # True when FILE has an `## Auto-approved operations` heading, even an empty one.
 has_approval_section() {
-    awk '
+    settings_text "$1" | awk '
         /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
         !fence && /^## Auto-approved operations[[:space:]]*$/ { found = 1; exit }
         END { exit !found }
-    ' "$1" 2>/dev/null
+    '
 }
 
 # Print the operation names listed under `## Auto-approved operations` in FILE:
 # the first word of each `- ` bullet, backticks stripped, up to the next `## `.
 approval_list() {
-    awk '
+    settings_text "$1" | awk '
         /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
         fence { next }
         /^## / { in_list = ($0 ~ /^## Auto-approved operations[[:space:]]*$/); next }
@@ -72,7 +88,7 @@ approval_list() {
             split($0, word, /[[:space:]]+/)
             if (word[1] != "") print word[1]
         }
-    ' "$1" 2>/dev/null
+    '
 }
 
 # SHA-256 of stdin as bare hex. shasum ships with macOS, sha256sum with Linux.
