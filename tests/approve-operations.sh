@@ -141,7 +141,7 @@ cat > "$SB/shim/jq" <<EOF
 for a in "\$@"; do
     [[ "\$a" == -b || "\$a" == --binary ]] && exec "$REAL_JQ" "\$@"
 done
-"$REAL_JQ" "\$@" | sed 's/\$/\r/'
+"$REAL_JQ" "\$@" | awk '{ printf "%s\r\n", \$0 }'
 EOF
 chmod +x "$SB/shim/jq"
 rm -f "$SB/cfg"/*.md
