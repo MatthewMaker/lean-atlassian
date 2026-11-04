@@ -14,6 +14,13 @@ carried the version bump in `plugin.json`.
   CRLF output left a trailing `\r` on the tool and operation names under Git
   Bash, so no listed operation ever matched and every call fell back to the
   normal prompt. The hook now calls `jq -b`.
+- Settings files saved with a UTF-8 byte-order mark, or as UTF-16 with a
+  byte-order mark (Windows PowerShell 5.1's `>`), now read the same as plain
+  UTF-8. Before, either made the `SessionStart` hook treat the file as
+  unconfigured, and UTF-16 also hid every listed operation from the
+  auto-approve hook. Both hooks now read the file through one normalizing
+  helper, `settings_text` in `lib.sh`, which also drops CR line endings so the
+  parsers no longer rely on `[[:space:]]` matching `\r`.
 
 ## [0.9.1] - 2026-10-23
 

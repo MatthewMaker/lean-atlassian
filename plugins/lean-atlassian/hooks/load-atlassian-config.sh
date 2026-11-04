@@ -50,7 +50,7 @@ src="$settings_src"
 # trailing comment is dropped. Returns empty (never errors) when the key is
 # absent or the file has no frontmatter.
 read_field() {
-    awk -v key="$1" '
+    settings_text "$file" | awk -v key="$1" '
         NR == 1 { if ($0 !~ /^---[[:space:]]*$/) exit; next }
         /^---[[:space:]]*$/ { exit }
         index($0, key ":") == 1 {
@@ -67,7 +67,7 @@ read_field() {
             print v
             exit
         }
-    ' "$file" 2>/dev/null
+    '
 }
 
 cloud_id="$(read_field cloud_id)"

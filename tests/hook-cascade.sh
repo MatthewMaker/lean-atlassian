@@ -189,5 +189,31 @@ assert_json "subagent emission" "$out" && {
     fi
 }
 
+# 14. Settings files saved by Windows tools read the same: CRLF line endings, a
+#     UTF-8 byte-order mark, or UTF-16 with a BOM (Windows PowerShell 5.1's `>`).
+#     The cloud_id line must match whole, so a stray \r fails it.
+# Re-encode stdin (LF, UTF-8) as the named variant.
+encode() {
+    case "$1" in
+        crlf)     awk '{ printf "%s\r\n", $0 }' ;;
+        bom)      printf '\xef\xbb\xbf'; cat ;;
+        bom-crlf) printf '\xef\xbb\xbf'; awk '{ printf "%s\r\n", $0 }' ;;
+        utf16le)  printf '\xff\xfe'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16LE ;;
+        utf16be)  printf '\xfe\xff'; awk '{ printf "%s\r\n", $0 }' | iconv -f UTF-8 -t UTF-16BE ;;
+    esac
+}
+rm -f "$SB/proj/.claude"/*.md "$SB/cfg"/*.md
+for enc in crlf bom bom-crlf utf16le utf16be; do
+    write_settings "$SB/plain.md" "ENC-$enc"
+    encode "$enc" < "$SB/plain.md" > "$SB/cfg/lean-atlassian.local.md"
+    out="$(run_hook)"
+    assert_json "$enc settings file" "$out" || continue
+    if grep -qxF -- "- cloud_id: ENC-$enc" <<<"$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out")"; then
+        echo "ok   [$enc settings file]"
+    else
+        echo "FAIL [$enc settings file]: got $out"; failures=$((failures + 1))
+    fi
+done
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all hook cascade checks passed"
