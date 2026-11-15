@@ -88,6 +88,26 @@ Before authoring a body for create or update, the server asks for its format
 guide: `executeRead(name: "getContentFormatGuide", inputs: {toolName: "createConfluencePage"})`
 (or `updateConfluencePage`).
 
+### When `updateConfluenceContent` keeps failing
+
+Writes can fail repeatedly while reads of the same page work. Two causes
+have been seen, and neither is fixed by retrying or re-authorizing:
+
+- **The page is a live doc** (`type: "live_doc"` in the read). Every update
+  returns `snapshot_stale`, even one with no body. Live docs save every
+  keystroke and have no draft or publish step. Converting the page to a
+  classic page fixes this:
+  `executeWrite(name: "convertConfluenceContentMode", inputs: {contentId, targetMode: "page"})`.
+  Ask first: it changes the page for every editor, and the next full-body
+  update replaces anything typed into the live doc after you read it.
+- **A classic page has an old unpublished draft.** A `draft: true` read
+  returns a `d1:<n>` token, and writes based on it fail with `internal_error`
+  or `snapshot_stale`. Read the page without `draft`, which returns a
+  `v:<version>` token for the published version, and write with that.
+  Before doing so, compare the draft with the published page. If the draft has
+  text the published page lacks, someone's unpublished edits would be lost, so
+  stop and tell the user.
+
 ### Operations
 
 | Operation | Runner | Purpose | Key inputs |
@@ -97,6 +117,7 @@ guide: `executeRead(name: "getContentFormatGuide", inputs: {toolName: "createCon
 | `getConfluenceSpace` | `executeRead` | One space, with its authoring instructions | `spaceIdOrKey` |
 | `listConfluenceComments` | `executeRead` | A page's footer and inline comments | `content-id`, `comment-type` |
 | `createConfluenceComment` | `executeWrite` | Add a comment, or reply to one | `contentId`, `commentType` (`footer`/`inline`), `body` (`{format, value}`) |
+| `convertConfluenceContentMode` | `executeWrite` | Convert a live doc to a classic page | `contentId`, `targetMode` (`page`) |
 
 ## Teamwork Graph
 
