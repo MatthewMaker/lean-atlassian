@@ -188,9 +188,10 @@ fi
 # Two offers, at most one per session, each made at most once — the marker is
 # written when the offer is injected, so a declined offer doesn't come back:
 #
-#   copy     only the global file exists and the session is in a git repo:
-#            offer to copy it into this repo's .claude/ (once per repository,
-#            shared by all its worktrees)
+#   copy     only the global file exists and the session is in a git repo's
+#            main checkout: offer to copy it into that checkout's .claude/
+#            (once per repository). Not offered in a linked worktree: a copy
+#            there is read by that worktree only and removed with it.
 #   add      the resolved file has no `## Auto-approved operations` section:
 #            offer to add one (once per file)
 #
@@ -227,12 +228,22 @@ repo_id() {
         || printf '%s' "$proj"
 }
 
+# True when the session is in a linked worktree (one made by `git worktree
+# add`, including every worktree of a bare repository): its own git directory
+# differs from the repository's common one. False when git can't say.
+in_linked_worktree() {
+    local own
+    own="$(git -C "$proj" rev-parse --absolute-git-dir 2>/dev/null)" \
+        && own="$(cd "$own" && pwd -P)" \
+        && [[ "$own" != "$(repo_id)" ]]
+}
+
 suggested="addOrEditJiraIssueWorklog, createJiraIssueLink, createConfluenceComment"
 offer=""
 proj_file="$proj/.claude/lean-atlassian.local.md"
 
 if [[ "$settings_tier" == global && -e "$proj/.git" && ! "$proj" -ef "$HOME" ]] \
-    && offer_once "copy:$(repo_id)" "copy:$proj"; then
+    && ! in_linked_worktree && offer_once "copy:$(repo_id)" "copy:$proj"; then
     offer+="Your Atlassian settings come from the global file ${settings_file}, and this git repository has none of its own. "
     offer+="At a natural pause early in this session (never mid-task), ask once with AskUserQuestion whether to copy it into this repository as ${proj_file}. "
     offer+="Copy, don't move: leave the global file in place for other repositories. "

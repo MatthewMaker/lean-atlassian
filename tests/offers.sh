@@ -110,27 +110,35 @@ else
 fi
 expect_offer copy "offer not spent by a subagent -> copy"
 
-# 10. The copy offer is once per repository, not per worktree: a worktree of a
-#     repo whose main checkout was already offered stays silent, and so does
-#     the main checkout after a worktree was offered first.
+# 10. The copy offer is made only in a main checkout, once per repository. A
+#     linked worktree never gets it and doesn't spend it: a copy there would
+#     be read by that worktree alone.
 if command -v git >/dev/null 2>&1; then
     rm -rf "$SB/data"; mkdir -p "$SB/data"
     write_settings "$GLOBAL_FILE" createJiraIssueLink
     git init -q "$SB/repo" && git -C "$SB/repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
     git -C "$SB/repo" worktree add -q "$SB/wt" 2>/dev/null
-    PROJ="$SB/repo" expect_offer copy "main checkout -> copy"
-    PROJ="$SB/wt" expect_offer none "worktree of an offered repo -> silent"
-    rm -rf "$SB/data"; mkdir -p "$SB/data"
-    PROJ="$SB/wt" expect_offer copy "worktree first -> copy"
-    PROJ="$SB/repo" expect_offer none "then main checkout -> silent"
+    PROJ="$SB/wt" expect_offer none "linked worktree -> no copy"
+    PROJ="$SB/repo" expect_offer copy "main checkout still offered -> copy"
+    PROJ="$SB/repo" expect_offer none "main checkout spent -> silent"
 
-    # 11. A marker under the old per-path key still counts as offered, and
-    #     carries over to the repository: its other worktrees stay silent.
+    # 11. A linked worktree still gets the add offer for the global file.
+    rm -rf "$SB/data"; mkdir -p "$SB/data"
+    write_settings "$GLOBAL_FILE"
+    PROJ="$SB/wt" expect_offer add "linked worktree, global without list -> add"
+
+    # 12. Every worktree of a bare repository is a linked one.
+    rm -rf "$SB/data"; mkdir -p "$SB/data"
+    git clone -q --bare "$SB/repo" "$SB/bare.git" 2>/dev/null
+    git -C "$SB/bare.git" worktree add -q "$SB/bare-wt" 2>/dev/null
+    PROJ="$SB/bare-wt" expect_offer add "bare repo's worktree -> no copy"
+
+    # 13. A marker under the old per-path key still counts as offered.
     rm -rf "$SB/data"; mkdir -p "$SB/data/offers"
+    write_settings "$GLOBAL_FILE" createJiraIssueLink
     key="copy:$SB/repo"
     printf '%s\n' "$key" > "$SB/data/offers/$(printf '%s' "$key" | sha256)"
     PROJ="$SB/repo" expect_offer none "legacy per-path marker honoured"
-    PROJ="$SB/wt" expect_offer none "legacy marker carried over to worktree"
 else
     echo "skip [per-repo copy offer]: git not installed"
 fi
