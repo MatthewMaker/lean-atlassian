@@ -8,6 +8,15 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Added
+
+- `references/mcp-tools-reference.md` covers two causes of repeated
+  `updateConfluenceContent` failures. Live docs reject every update with
+  `snapshot_stale` until converted to a classic page
+  (`convertConfluenceContentMode`, now listed). Classic pages with an old
+  unpublished draft reject writes based on its `d1:` token, but accept a
+  `v:` token from a read of the published version.
+
 ## [0.9.2] - 2026-11-04
 
 ### Fixed
