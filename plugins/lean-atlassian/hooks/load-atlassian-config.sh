@@ -77,6 +77,60 @@ site_url="$(read_field site_url)"
 # project_key saves a listJiraProjects call (default project scope).
 account_id="$(read_field account_id)"
 project_key="$(read_field project_key)"
+# link_issue_keys asks for every Jira key in a reply to be a browse link.
+link_issue_keys="$(read_field link_issue_keys)"
+
+# Print the `- key: value` bullets of the body section `## Current sprint`, as
+# `key=value` lines, skipping fenced code (the .example file's sample). Claude
+# keeps this section up to date; it's the one body section injected, because
+# it's a single line and it goes stale on a known date.
+read_sprint() {
+    settings_text "$file" | awk '
+        /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+        fence { next }
+        /^## / { in_s = ($0 ~ /^## Current sprint/); next }
+        in_s && /^[[:space:]]*- [A-Za-z]+:/ {
+            sub(/^[[:space:]]*- /, "")
+            k = $0; sub(/:.*/, "", k)
+            v = $0; sub(/^[^:]*:[[:space:]]*/, "", v); sub(/[[:space:]]+$/, "", v)
+            gsub(/`/, "", v)
+            print tolower(k) "=" v
+        }
+    '
+}
+
+# Describe the cached sprint for the injected context: the id while it's
+# current, a refresh instruction once its end has passed (or the section is
+# unusable), nothing when there's no section. `ends` is Jira's endDate, a UTC
+# timestamp compared in UTC, or a bare date compared with the local date.
+sprint_line() {
+    local line k v board="" name="" id="" ends="" now refresh
+    while IFS= read -r line; do
+        k="${line%%=*}" v="${line#*=}"
+        case "$k" in
+            board) board="$v" ;; sprint) name="$v" ;; id) id="$v" ;; ends) ends="$v" ;;
+        esac
+    done < <(read_sprint)
+    [[ -n "$board$name$id$ends" ]] || return 0
+
+    refresh="before moving an issue into a sprint, look up the active one with executeRead name getJiraBoardSprintData, inputs {boardId: \"${board:-<board id>}\", includeIssues: false}, responseFields [\"resolvedSprint\"], and rewrite the Current sprint section of ${settings_src} with its id, name and endDate."
+    if [[ "$ends" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8} ]]; then
+        now="$(date -u +%Y-%m-%dT%H:%M:%S)"
+        ends="${ends:0:19}"
+    elif [[ "$ends" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        now="$(date +%Y-%m-%d)"
+    else
+        printf '%s' "- current sprint: the cached sprint is unreadable; ${refresh}"
+        return 0
+    fi
+    if [[ ! "$id" =~ ^[0-9]+$ ]]; then
+        printf '%s' "- current sprint: the cached sprint has no numeric id; ${refresh}"
+    elif [[ "$now" > "$ends" ]]; then
+        printf '%s' "- current sprint: expired (${name:-id $id} ended ${ends}); ${refresh}"
+    else
+        printf '%s' "- current sprint: ${name:-unnamed}, id ${id} (board ${board:-unknown}, ends ${ends}). Use the id as transitionJiraIssue's sprintId; createJiraIssue takes assignToSprint: \"active\"."
+    fi
+}
 
 # Treat the unedited example placeholder (or an empty value) as "not configured".
 if [[ -z "$cloud_id" || "$cloud_id" == "your-cloud-id-here" ]]; then
@@ -93,6 +147,8 @@ site_url="$(json_escape "$site_url")"
 account_id="$(json_escape "$account_id")"
 project_key="$(json_escape "$project_key")"
 src="$(json_escape "$src")"
+# Escaped whole: the name and dates come from a file Claude writes.
+sprint="$(json_escape "$(sprint_line)")"
 
 # Print the hook's JSON for $event with CTX as additionalContext.
 emit() {
@@ -108,6 +164,11 @@ ctx+="- site_url: ${site_url}\n"
 # Only surface the optional identifiers that are actually configured.
 [[ -n "$account_id" ]] && ctx+="- account_id: ${account_id} (your Jira accountId — use for assignment; do NOT call atlassianUserInfo)\n"
 [[ -n "$project_key" ]] && ctx+="- project_key: ${project_key} (default Jira project for searches and new issues)\n"
+[[ -n "$sprint" ]] && ctx+="${sprint}\n"
+# Spelled-out case match rather than ${var,,}: macOS ships bash 3.2.
+if [[ -n "$site_url" ]] && [[ "$link_issue_keys" == [Tt][Rr][Uu][Ee] || "$link_issue_keys" == [Yy][Ee][Ss] || "$link_issue_keys" == 1 ]]; then
+    ctx+="\nWrite every Jira issue key in a reply as a Markdown link, e.g. [PROJ-123](${site_url%/}/browse/PROJ-123), in tables and lists too. Text meant to be pasted elsewhere (code blocks, commit messages, chat drafts, files on disk) keeps its destination's conventions.\n"
+fi
 # The skill's description can be dropped from the skill listing when many
 # skills are installed, so name it here, with the rules that matter most if it
 # never loads.

@@ -42,6 +42,10 @@ accountId. It does not set the sprint at all (see **Sprint assignment**):
 {"assignee": {"accountId": "…"}, "components": [{"name": "Frontend"}]}
 ```
 
+The tool's description says `fields` accepts a bare accountId for assignee.
+It doesn't: the edit reports success and leaves the assignee unchanged. A bare
+accountId does work under `additional_fields`.
+
 Getting this wrong is not hypothetical. Under the v1 server, a batch of issues
 created with a camelCase `additionalFields` and a nested `assignee` came back
 with assignee, components, priority and sprint all unset, and each create
@@ -51,7 +55,10 @@ A create the server *does* reject comes back with a `repairHint` naming the
 field at fault; correct that field and retry.
 
 This is a "pass the right shape" rule, not a "verify afterwards" rule — it adds no
-follow-up read.
+follow-up read. The plugin's `PostToolUse` hook does the checking: it compares
+each `createJiraIssue` and `editJiraIssue` response with the request, and when
+a field didn't apply it adds a note beside the result naming the field. Act on
+that note; without one, there's no need to read the issue back.
 
 ### Summary prefixes → Components
 
@@ -122,8 +129,41 @@ or `"active"`.
   reports `sprintAssignment.assigned`. If it is `false`, the issue was still
   created — don't create it again; move it with `transitionJiraIssue` below.
 - **Existing issue**: call `transitionJiraIssue` with `issueIdOrKey` and
-  `sprintId: <id>` (an integer). No workflow transition is needed alongside it.
+  `sprintId: <id>` (an integer). The session-start context names the current
+  sprint's id when the settings file caches it (see **Current sprint** below).
+  When that line says the cache expired, or there's no line, refresh the cache
+  first. No workflow transition is needed alongside it.
   `assignToBacklog: true` moves it out of a sprint instead.
+
+Sprint moves haven't been seen to fail on either path, so don't read the issue
+back to confirm one.
+
+### Resolutions
+
+A workflow's transition screen may not include `resolution`. Setting it in
+`transitionJiraIssue`'s `fields` then fails with *"Field 'resolution' cannot
+be set. It is not on the appropriate screen, or unknown."* The `repairHint`
+that comes with it suggests passing `resolution: null`, which clears the
+resolution rather than setting it; don't follow it. Instead:
+
+1. Transition with no `fields`. A Done-category transition usually sets
+   resolution `Done` by itself, so plain Done needs nothing more.
+2. For any other resolution, follow up with `editJiraIssue` and
+   `fields: {"resolution": {"name": "Won't Do"}}`.
+
+### Descriptions and comments
+
+Markdown is the default `contentFormat` for descriptions and comments, and
+paragraphs, headings, bold, bullets and code render as expected in both.
+
+Markdown checkboxes don't become Jira checkboxes. `- [ ]` is stored as a plain
+bullet and `- [x]` as a struck-through one, and both read back as `- [ ]` /
+`- [x]`, so a read can't tell a real checklist from a struck-through list.
+To check, fetch with `expand: "renderedFields"`: a struck item renders as
+`<del>`. For real checkboxes, get the HTML shape from
+`executeRead(name: "getContentFormatGuide", inputs: {toolName: "editJiraIssue"})`.
+Don't rewrite a description through markdown just to tick one box: a real
+checklist comes back as plain bullets.
 
 ## Settings-file caches (file body)
 
@@ -163,6 +203,34 @@ _refreshed: 2026-07-05_
 
 **Prefix exceptions** is an optional body list of tokens that must never be
 treated as a Component prefix even if a Component of that name exists.
+
+### Current sprint
+
+One more body section holds the board's active sprint. Unlike the caches
+above, the `SessionStart` hook reads it: it injects the id while `ends` is in
+the future, and an instruction to refresh once it has passed.
+
+```markdown
+## Current sprint (auto-maintained)
+
+- board: 7
+- sprint: Sprint 12
+- id: 340
+- ends: 2026-07-20T05:00:00.000Z
+```
+
+Write or rewrite it, in the settings file the hook names, when:
+
+- the session-start context says it expired or is unreadable,
+- you need a sprint id and the file has no such section, or
+- Jira rejects the cached id as a closed sprint (it ended early).
+
+To refresh, call `executeRead` with `name: "getJiraBoardSprintData"`,
+`inputs: {boardId: "<board>", includeIssues: false}` and
+`responseFields: ["resolvedSprint"]`, and copy `id`, `name` and `endDate`
+(verbatim, a UTC timestamp) into the section. With no board known yet, find
+it with `executeRead` `listJiraBoards`, `inputs: {projectKeyOrId: <project_key>}`,
+and pick the Scrum board.
 
 ## Auto-approved operations (a permission grant)
 

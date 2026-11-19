@@ -4,17 +4,19 @@ site_url: "https://your-org.atlassian.net"
 account_id: ""
 project_key: ""
 component_prefix_strip: true
+link_issue_keys: false
 ---
 
 # Atlassian Plugin Settings
 
 Configure this file with your Atlassian workspace details.
 
-Only `cloud_id` and `site_url` are required. `account_id`, `project_key`, and
-`component_prefix_strip` are optional — leave them blank to disable the related
-behavior. The `SessionStart` hook injects the four scalar fields above (when
-non-empty); the auto-maintained cache sections near the bottom are read and
-rewritten lazily, only when creating issues.
+Only `cloud_id` and `site_url` are required. `account_id`, `project_key`,
+`component_prefix_strip` and `link_issue_keys` are optional — leave them blank
+to disable the related behavior. The `SessionStart` hook injects the scalar
+fields above (when non-empty); the auto-maintained cache sections near the
+bottom are read and rewritten lazily, only when creating issues. The one
+exception is `## Current sprint`, which the hook also reads.
 
 ## How to find your cloud_id
 
@@ -60,6 +62,7 @@ site_url: "https://acme.atlassian.net"
 account_id: "712020:aaaaaaaa-1111-2222-3333-444444444444"
 project_key: "MYPROJ"
 component_prefix_strip: true
+link_issue_keys: true
 ---
 ```
 
@@ -70,6 +73,7 @@ component_prefix_strip: true
 | `account_id` | Your Jira accountId — used to assign issues to yourself without an `atlassianUserInfo` lookup. |
 | `project_key` | Default project key for searches and new issues (e.g. `MYPROJ`). |
 | `component_prefix_strip` | When creating an issue, whether a matched summary prefix (e.g. `Frontend: `) is stripped from the summary once mapped to a Component. Default `true`; set `false` to keep summaries verbatim. |
+| `link_issue_keys` | When `true`, Claude writes every Jira key in a reply as a link to `<site_url>/browse/<KEY>`, except in text meant to be pasted elsewhere. Default off. |
 
 ## Creating issues: prefix → Component mapping
 
@@ -109,6 +113,26 @@ _refreshed: 2026-07-05_
   skips the user lookup after the first time.
 - **Prefix exceptions** — tokens that should never be treated as a Component
   prefix even if a Component of that name exists.
+
+## Current sprint
+
+Claude also keeps the board's active sprint in the body, so moving an issue
+into the sprint needs no lookup:
+
+```markdown
+## Current sprint (auto-maintained)
+
+- board: 7
+- sprint: Sprint 12
+- id: 340
+- ends: 2026-07-20T05:00:00.000Z
+```
+
+The `SessionStart` hook reads it: until `ends` passes it tells Claude the
+sprint id; after that it tells Claude to look up the new sprint and rewrite
+the section. Claude creates the section the first time it needs a sprint id.
+Creating an issue in the current sprint doesn't need it at all
+(`assignToSprint: "active"`).
 
 ## Auto-approving operations
 

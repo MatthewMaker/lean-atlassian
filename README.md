@@ -19,6 +19,9 @@ window with noise.
 - **Per-operation approval**: A `PreToolUse` hook auto-approves the
   `executeRead`/`executeWrite` operations you list, so you don't have to allow
   every Atlassian write to skip the prompt for a few
+- **Silent-write check**: A `PostToolUse` hook compares each Jira create and
+  edit with the issue it returns, and tells Claude when a field it asked for
+  didn't apply — the server drops a misplaced field without an error
 - **Structured research**: An autonomous agent for multi-step Atlassian research
   that keeps raw intermediate results out of the main conversation
 
@@ -32,6 +35,7 @@ window with noise.
 | `atlassian-researcher` | Agent | Multi-step autonomous research across Jira + Confluence |
 | `load-atlassian-config` | Hook | `SessionStart` hook that injects your `cloud_id`/`site_url` into each session; also runs as a `SubagentStart` hook so `atlassian-researcher` gets the same settings |
 | `approve-listed-operations` | Hook | `PreToolUse` hook that auto-approves the `executeRead`/`executeWrite` operations listed in your settings file |
+| `check-write-echo` | Hook | `PostToolUse` hook that flags a `createJiraIssue`/`editJiraIssue` call whose returned issue lacks a field it asked for |
 
 ## Prerequisites
 
@@ -136,12 +140,19 @@ convenience.
 | `account_id` | Optional — your Jira accountId; injected so self-assignment skips an `atlassianUserInfo` lookup |
 | `project_key` | Optional — default project key for searches and new issues |
 | `component_prefix_strip` | Optional — strip a matched `Prefix: ` from a new issue's summary once mapped to a Component (default `true`) |
+| `link_issue_keys` | Optional — `true` makes Claude write every Jira key in a reply as a `<site_url>/browse/<KEY>` link, except in text meant to be pasted elsewhere |
 
 The `account_id` and `project_key` scalars are injected at `SessionStart` like
 `cloud_id`. Nested caches — a per-project **Component list** and a
 **name → accountId** people map — are maintained automatically in the settings
 file body and read lazily only when creating issues, so they cost no session
 context until used.
+
+One body section is read at `SessionStart`: **`## Current sprint`**, which
+Claude writes the first time it needs a sprint id (board, sprint name, id, and
+Jira's end date). While the end date is in the future the hook gives Claude
+the id, so moving an issue into the sprint needs no lookup. Once it has passed,
+the hook tells Claude to look up the new sprint and rewrite the section.
 
 ### Creating issues: summary prefix → Component
 
@@ -208,12 +219,13 @@ No build step. Checks, runnable from anywhere in the repo:
 tests/hook-cascade.sh          # SessionStart hook: precedence, scalars, JSON escaping
 tests/offers.sh                # SessionStart hook: one-time offers fire once, under their condition
 tests/approve-operations.sh    # PreToolUse hook: only listed, never fenced, never destructive
+tests/check-write-echo.sh      # PostToolUse hook: silent write failures flagged, applied writes left alone
 tests/manifest-invariants.sh   # manifest structure; version declared exactly once
 shellcheck plugins/*/hooks/*.sh tests/*.sh
 claude plugin validate .
 ```
 
-CI runs all six on every pull request.
+CI runs all seven on every pull request.
 
 To release, bump `version` in `plugins/lean-atlassian/.claude-plugin/plugin.json`
 and rename the CHANGELOG's `[Unreleased]` entries to a matching

@@ -37,6 +37,10 @@ jobs:
       - name: Operation approval tests
         run: tests/approve-operations.sh
 
+      # Silent write failures seen on the live server, and writes that applied.
+      - name: Write echo tests
+        run: tests/check-write-echo.sh
+
   manifests:
     name: Manifests
     runs-on: ubuntu-latest
