@@ -38,6 +38,12 @@ carried the version bump in `plugin.json`.
   up the new sprint and rewrite the section.
 - `link_issue_keys` setting: when `true`, Claude writes every Jira key in a
   reply as a `<site_url>/browse/<KEY>` link.
+- `references/mcp-tools-reference.md` covers two causes of repeated
+  `updateConfluenceContent` failures. Live docs reject every update with
+  `snapshot_stale` until converted to a classic page
+  (`convertConfluenceContentMode`, now listed). Classic pages with an old
+  unpublished draft reject writes based on its `d1:` token, but accept a
+  `v:` token from a read of the published version.
 
 ### Changed
 
