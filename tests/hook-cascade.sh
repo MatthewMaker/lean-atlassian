@@ -215,5 +215,73 @@ for enc in crlf bom bom-crlf utf16le utf16be; do
     fi
 done
 
+# 15. The Current sprint body section: the id while current, a refresh
+#     instruction once ended or unusable, nothing without the section. Fenced
+#     samples never count, and a name with quotes still yields valid JSON.
+rm -f "$SB/proj/.claude"/*.md "$SB/cfg"/*.md
+# Write a global settings file whose body holds the given lines.
+write_body() {
+    { printf -- '---\ncloud_id: "SPRINT"\nsite_url: "https://example.test/"\n'
+      [[ -n "${LINK:-}" ]] && printf 'link_issue_keys: %s\n' "$LINK"
+      printf -- '---\n\n'
+      for line in "$@"; do printf '%s\n' "$line"; done
+      printf '\n## People cache (auto-maintained)\n\n- id: 999\n'
+    } > "$SB/cfg/lean-atlassian.local.md"
+}
+# Expect the injected context to contain (want=has) or lack (want=lacks) TEXT.
+expect_ctx() {
+    local label="$1" want="$2" text="$3" out ctx
+    out="$(run_hook)"
+    assert_json "$label" "$out" || return
+    ctx="$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out")"
+    if { [[ "$want" == has ]] && ! grep -qF -- "$text" <<<"$ctx"; } \
+        || { [[ "$want" == lacks ]] && grep -qF -- "$text" <<<"$ctx"; }; then
+        echo "FAIL [$label]: expected context to $want '$text':"; printf '%s\n' "$ctx"
+        failures=$((failures + 1)); return
+    fi
+    echo "ok   [$label]"
+}
+SECTION='## Current sprint (auto-maintained)'
+
+write_body "$SECTION" "" "- board: 7" "- sprint: Sprint 9" "- id: 123" "- ends: 2999-01-01T06:00:00.000Z"
+expect_ctx "sprint current (timestamp)" has "- current sprint: Sprint 9, id 123 (board 7, ends 2999-01-01T06:00:00)."
+write_body "$SECTION" "" "- board: 7" "- sprint: Sprint 8" "- id: 122" "- ends: 2000-01-01T06:00:00.000Z"
+expect_ctx "sprint expired (timestamp)" has "- current sprint: expired (Sprint 8 ended 2000-01-01T06:00:00)"
+expect_ctx "expired names the board" has 'inputs {boardId: "7", includeIssues: false}'
+expect_ctx "expired names the file" has "rewrite the Current sprint section of $SB/cfg/lean-atlassian.local.md"
+expect_ctx "expired gives no id" lacks "id 122"
+write_body "$SECTION" "- board: 7" "- sprint: Sprint 9" "- id: 123" "- ends: 2999-12-31"
+expect_ctx "sprint current (bare date)" has "- current sprint: Sprint 9, id 123"
+write_body "$SECTION" "- board: 7" "- sprint: Sprint 8" "- id: 122" "- ends: 2000-12-31"
+expect_ctx "sprint expired (bare date)" has "expired (Sprint 8 ended 2000-12-31)"
+write_body "$SECTION" "- board: 7" "- sprint: Sprint 9" "- id: soon" "- ends: 2999-12-31"
+expect_ctx "sprint id not numeric" has "the cached sprint has no numeric id"
+write_body "$SECTION" "- board: 7" "- id: 123" "- ends: next week"
+expect_ctx "sprint end unreadable" has "the cached sprint is unreadable"
+write_body "$SECTION" '- sprint: The "big" one \ v2' "- id: 5" "- ends: 2999-12-31"
+expect_ctx "sprint name with quotes" has 'The "big" one \ v2, id 5'
+write_body '```markdown' "$SECTION" "- board: 7" "- id: 123" "- ends: 2999-12-31" '```'
+expect_ctx "fenced sprint section ignored" lacks "current sprint"
+write_body
+expect_ctx "no sprint section" lacks "current sprint"
+write_body "$SECTION" "- board: 7" "- sprint: Sprint 9" "- id: 123" "- ends: 2999-12-31"
+out="$(CLAUDE_PROJECT_DIR="$SB/proj" CLAUDE_CONFIG_DIR="$SB/cfg" "$HOOK" SubagentStart)"
+if assert_json "subagent sprint" "$out" && grep -qF -- "- current sprint: Sprint 9, id 123" <<<"$(jq -r '.hookSpecificOutput.additionalContext' <<<"$out")"; then
+    echo "ok   [SubagentStart carries the sprint]"
+else
+    echo "FAIL [SubagentStart carries the sprint]: got $out"; failures=$((failures + 1))
+fi
+
+# 16. link_issue_keys: a truthy value adds the link rule built from site_url
+#     (trailing slash dropped); absent or false adds nothing.
+for v in true TRUE yes 1; do
+    LINK="$v" write_body
+    expect_ctx "link_issue_keys: $v" has "[PROJ-123](https://example.test/browse/PROJ-123)"
+done
+for v in false no ""; do
+    LINK="$v" write_body
+    expect_ctx "link_issue_keys: '$v'" lacks "/browse/"
+done
+
 if (( failures )); then echo; echo "$failures check(s) failed"; exit 1; fi
 echo; echo "all hook cascade checks passed"

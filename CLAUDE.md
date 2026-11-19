@@ -4,23 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A single-plugin Claude Code marketplace. The only executable code is bash: two
-hook scripts (`load-atlassian-config.sh` for `SessionStart` and `SubagentStart`,
-`approve-listed-operations.sh` for `PreToolUse`) and the `lib.sh` they share.
-Everything
-else is Markdown that instructs a future Claude instance. There is no build
+A single-plugin Claude Code marketplace. The only executable code is bash:
+three hook scripts (`load-atlassian-config.sh` for `SessionStart` and
+`SubagentStart`, `approve-listed-operations.sh` for `PreToolUse`,
+`check-write-echo.sh` for `PostToolUse`) and the `lib.sh` the first two share.
+Everything else is Markdown that instructs a future Claude instance. There is no build
 step and no package manager. Checks, all runnable from anywhere in the repo:
 
 ```bash
 tests/hook-cascade.sh          # SessionStart: precedence, optional scalars, JSON escaping
 tests/offers.sh                # SessionStart: one-time offers fire once, under their condition
 tests/approve-operations.sh    # PreToolUse: only listed, never fenced, never destructive
+tests/check-write-echo.sh      # PostToolUse: silent write failures flagged, applied writes left alone
 tests/manifest-invariants.sh   # manifest structure; version declared exactly once
 shellcheck plugins/*/hooks/*.sh tests/*.sh   # .shellcheckrc makes it follow lib.sh
 claude plugin validate .       # schema; runs unauthenticated
 ```
 
-CI runs all six on every PR. On `main`, a `release` job then tags and
+CI runs all seven on every PR. On `main`, a `release` job then tags and
 releases the `plugin.json` version if it isn't tagged yet, using its CHANGELOG
 section as the notes. `manifest-invariants.sh` fails unless the newest
 `## [x.y.z]` CHANGELOG heading equals that version, so a release is a version
@@ -41,15 +42,15 @@ The threat it guards against is the user's own earlier settings files, such as
 one copied from an older `.example`, not a hostile repository: project and
 global lists are honoured alike, with no confirmation step.
 
-The settings cascade lives once, in `lib.sh::resolve_settings`. Both hooks
-source it; don't re-inline it.
+The settings cascade lives once, in `lib.sh::resolve_settings`. The
+`SessionStart` and `PreToolUse` hooks source it; don't re-inline it.
 
 ## Layout
 
 ```
 .claude-plugin/marketplace.json          # catalog entry
 .github/workflows/ci.yml
-tests/{hook-cascade,offers,approve-operations,manifest-invariants}.sh
+tests/{hook-cascade,offers,approve-operations,check-write-echo,manifest-invariants}.sh
 .shellcheckrc
 plugins/lean-atlassian/
   .claude-plugin/plugin.json             # plugin manifest
@@ -57,6 +58,7 @@ plugins/lean-atlassian/
   hooks/lib.sh                           # cascade + approval-list helpers, sourced
   hooks/load-atlassian-config.sh         # SessionStart: settings + offers; SubagentStart: settings
   hooks/approve-listed-operations.sh     # PreToolUse: per-operation approval
+  hooks/check-write-echo.sh              # PostToolUse: flags Jira writes that dropped a field
   commands/{jira,confluence}.md
   skills/atlassian-mediation/SKILL.md    # reads; references/jira-writes.md for writes
   agents/atlassian-researcher.md
@@ -111,6 +113,9 @@ self-maintained cache:
   `## Prefix exceptions`) — deliberately not injected; read and rewritten lazily
   by the issue-creation workflow so sessions that never create an issue pay no
   context for them.
+- **`## Current sprint`** — the one body section the `SessionStart` hook
+  reads: a single line, and it goes stale on a known date, so the hook checks
+  the date instead of trusting Claude to notice. Claude rewrites it on expiry.
 - **`## Auto-approved operations`** — a permission grant, read by the
   `PreToolUse` hook from whichever file the cascade resolves. Claude writes it
   only when the user accepts an offer or asks outright, and carries it over
@@ -135,7 +140,9 @@ through `executeRead`/`executeWrite`/`executeDestructive` with a top-level
   components/fixVersions/`customfield_*` go inside snake_case
   `additional_fields`.
 - `editJiraIssue`: the same `additional_fields`, or raw Jira shapes inside
-  `fields`, assignee included. It doesn't move sprints or change status —
+  `fields`, assignee included: `fields.assignee` must be `{"accountId": …}`.
+  A bare accountId there is ignored, though the tool description says it's
+  accepted; under `additional_fields` it works. It doesn't move sprints or change status —
   `transitionJiraIssue` does both (`sprintId`, `transitionId`).
 - Sprints take the numeric sprint id, not the sprint number.
   `createJiraIssue`'s `assignToSprint` also takes the exact sprint name or
@@ -144,6 +151,10 @@ through `executeRead`/`executeWrite`/`executeDestructive` with a top-level
   max 100). Issues are at `.issues.nodes[]`, paging at `.issues.pageInfo`
   (`endCursor` → `nextPageToken`). A large result can still overflow; the
   harness then spills full JSON to a file and returns the path.
+- `check-write-echo.sh` catches these after the fact by comparing the
+  returned issue with the request. Its test fixtures are trimmed copies of
+  live repros from 2026-11-19; add one there when a new silent
+  shape turns up.
 - `getConfluenceContent` returns HTML unless `content_format: "markdown"` is
   passed, and only a summary unless `detail` says otherwise.
 

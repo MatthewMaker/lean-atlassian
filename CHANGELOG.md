@@ -8,6 +8,35 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-19
+
+### Added
+
+- `PostToolUse` hook `check-write-echo.sh` for `createJiraIssue` and
+  `editJiraIssue`. The server drops a misplaced field without an error, so
+  these calls can report success with a field unset. The hook compares the
+  returned issue with the request and adds a note for Claude when the
+  assignee, components, labels or priority didn't apply, when a top-level
+  parameter isn't one the tool has, or when an edit of fields the response
+  doesn't show left the issue's `updated` time unchanged. It never blocks.
+  Each test case is a failure reproduced on the live server: a bare-string
+  assignee under `editJiraIssue`'s `fields`, camelCase `additionalFields`, and
+  top-level `components` or `customfield_*` on create.
+- A `## Current sprint` section in the settings file body (board, sprint name,
+  id, end date), which Claude writes and the `SessionStart` hook reads: it
+  injects the sprint id until the end date passes, then tells Claude to look
+  up the new sprint and rewrite the section.
+- `link_issue_keys` setting: when `true`, Claude writes every Jira key in a
+  reply as a `<site_url>/browse/<KEY>` link.
+
+### Changed
+
+- `references/jira-writes.md` covers resolutions (transition, then set a
+  non-default resolution with `editJiraIssue`; don't follow the server's
+  `resolution: null` repair hint), markdown checkboxes (stored as plain or
+  struck-through bullets, indistinguishable on read), the bare-string assignee
+  under `fields`, and says sprint moves need no read-back.
+
 ## [0.9.2] - 2026-11-04
 
 ### Fixed
