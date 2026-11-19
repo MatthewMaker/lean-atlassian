@@ -8,6 +8,16 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-19
+
+### Changed
+
+- The one-time offer to copy the global settings into a repository is no
+  longer made in a linked worktree (one made by `git worktree add`, which
+  includes every worktree of a bare repository). The project settings file is
+  read from the current checkout only, so a copy made there reached no other
+  worktree and was deleted with it. The main checkout is still offered once.
+
 ## [0.10.0] - 2026-11-19
 
 ### Added
