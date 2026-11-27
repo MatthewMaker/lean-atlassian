@@ -161,8 +161,10 @@ prefixes (e.g. `"Frontend: Backend: Fix login button"`), each prefix is matched
 case-insensitively against the target project's existing Components and every
 match is added to the issue. Unmatched prefixes stay in the summary — nothing is
 invented. By default the matched prefixes are stripped from the summary; set
-`component_prefix_strip: false` to keep it verbatim. Component names are
-discovered from the project and cached locally so repeat creates skip the lookup.
+`component_prefix_strip: false` to keep it verbatim. This holds even where the
+project's older issues kept their prefixes: only the setting changes it.
+Component names are discovered from the project and cached locally so repeat
+creates skip the lookup.
 
 ### Auto-approving `executeRead` / `executeWrite` operations
 

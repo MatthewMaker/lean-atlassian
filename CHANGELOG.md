@@ -8,6 +8,13 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+### Changed
+
+- Creating an issue maps summary prefixes to Components and strips them even
+  when the project's existing issues kept their prefixes. Only
+  `component_prefix_strip: false` keeps a prefix, and only a Prefix exceptions
+  entry stops a token from mapping.
+
 ## [0.10.1] - 2026-11-19
 
 ### Changed
