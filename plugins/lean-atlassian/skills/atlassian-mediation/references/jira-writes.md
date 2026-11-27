@@ -98,6 +98,11 @@ When creating an issue:
    becomes summary `"Fix login"`. If `component_prefix_strip: false`, keep the
    summary verbatim.
 
+   Apply steps 4 and 5 even when the project's existing issues don't: recent
+   tickets that kept a matching prefix in the summary, or lack the Component, are
+   not a setting. Only `component_prefix_strip: false` keeps the prefix, and only a
+   **Prefix exceptions** entry stops a token from mapping.
+
 6. **Confirm.** After creating, report the resolved Components and the final
    summary, e.g. *"Created MYPROJ-123 (components: Frontend, Backend) — 'Fix login
    button'."*
