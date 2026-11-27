@@ -8,6 +8,8 @@ carried the version bump in `plugin.json`.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-11-27
+
 ### Changed
 
 - Creating an issue maps summary prefixes to Components and strips them even
