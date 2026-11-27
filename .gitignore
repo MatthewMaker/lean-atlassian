@@ -3,3 +3,6 @@
 
 # macOS
 .DS_Store
+
+# Linked worktrees (git worktree add worktrees/<branch>)
+/worktrees/
